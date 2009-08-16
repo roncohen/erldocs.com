@@ -1,0 +1,3 @@
+WX_VSN = 0.98.1
+
+TICKETS = OTP-7875
