@@ -1,20 +1,22 @@
 -module(erldocs).
 
--export([build/0, index/0 ]).
+-export([build/0, index/0, find/0 ]).
 
--export([bottom/0, top/0, head/0 ]).
-
--define(OTP_SRC, "/home/dale/otp_src_R13B").
+-define(OTP_SRC, "/home/dale/lib/erldocs.com/erlsrc/otp_src_R13B").
 -define(ROOT, "/home/dale/lib/erldocs.com").
 
+% List of the type of xml files erldocs can build
 buildable() ->
     [ erlref ].
 
+find() ->
+    find_docs(?OTP_SRC).
+
+% Build the documentation
 build() ->
     build(?OTP_SRC).
 build(Src) -> 
     ok = build(Src, find_docs(Src)).
-
 
 build(_Otp, []) ->
     ok;
@@ -27,6 +29,7 @@ build(Otp, [ DocSrc | Rest]) ->
 
     file:set_cwd(Root),
 
+    % TODO: eugh, remove try catch
     try 
         Opts = [ {space, normalize}, {encoding, "latin1"},
                  {fetch_path, [Otp++"/lib/docbuilder/dtd/"]}],
@@ -37,12 +40,8 @@ build(Otp, [ DocSrc | Rest]) ->
             true  ->
                 OutDir = ?ROOT++"/www/"++App++"/",
                 ok = filelib:ensure_dir(OutDir),
-                %%Xml = strip_whitespace(Content),
                 Mod = filename:basename(File, ".xml"),
                 render(Type, App, Mod, Content)
-                %                io:format("~p ~n",[Xml])
-                %docb_transform:file(DocSrc, [{outdir, OutDir},
-                %                             {html_mod, ?MODULE}])       
         end
     catch
         Error:Reason ->
@@ -54,9 +53,6 @@ build(Otp, [ DocSrc | Rest]) ->
     build(Otp, Rest).
 
 render(erlref, App, Mod, Xml) ->
-
-%    Html = render(fun tr_erlref/1, Xml),
-%    to_string(Html).
     Html = erlref_wrap(render(fun tr_erlref/1, Xml)),
     File = ?ROOT++"/www/"++App++"/"++Mod++".html",
     file:write_file(File, to_string(Html)).
@@ -65,48 +61,11 @@ render(Fun, List) when is_list(List) ->
     [ render(Fun, X) || X <- List ];
 render(Fun, Element) ->
     case Fun(Element) of
-        ignore         -> "";
-        {stop, Result} -> Result;
+        ignore               -> "";
+        {stop, Result}       -> Result;
         {NEl, NAttr, NChild} -> {NEl, NAttr, render(Fun, NChild)};
-        Else -> Else
+        Else                 -> Else
     end.
-
-tr_erlref({header,[],_Child}) ->
-    ignore;
-tr_erlref({section,[],_Child}) ->
-    ignore;
-tr_erlref({marker, _Marker, _Child}) ->
-    ignore;
-tr_erlref({type, _Marker, _Child}) ->
-    ignore;
-tr_erlref({module,[],Module}) ->
-    {h1, [], [lists:flatten(Module)]};
-tr_erlref({modulesummary, [], Child}) ->
-    {h2, [], Child};
-tr_erlref({c, [], Child}) ->
-    {code, [], Child};
-tr_erlref({seealso, _Marker, Child}) ->
-    {span, [{class, "seealso"}], Child};
-tr_erlref({desc, [], Child}) ->
-    {p, [{class, "description"}], Child};
-tr_erlref({description, [], Child}) ->
-     {p, [{class, "description"}], Child};
-tr_erlref({funcs, [], Child}) ->
-    {'div', [{class,"functions"}], [{h3, [], ["Functions"]} | Child]};
-tr_erlref({func, [], Child}) ->
-    {'div', [{class,"function"}], Child};
-tr_erlref({tag, [], Child}) ->
-    {'div', [{class,"tag"}], Child};
-tr_erlref({item, [], Child}) ->
-    {'div', [{class,"item"}], Child};
-
-tr_erlref({name, [], Child}) ->
-    {h3, [], Child};
-tr_erlref({fsummary, [], _Child}) ->
-    ignore;
-
-tr_erlref(Else) ->
-    Else.
 
 index() ->
     index(?OTP_SRC).
@@ -201,17 +160,12 @@ strip_whitespace({El,Attr,Children}) ->
 strip_whitespace(Else) ->
     Else.
     
-find_docs(OtpSrc) ->
-    F = fun(List, Acc) -> lists:append(List, Acc) end,
-    AppDirs = [ find_app_docs(OtpSrc, X)
-                || X <- filelib:wildcard(OtpSrc++"/lib/*/"),
-                   filelib:is_dir(X) ],
-    lists:foldl(F, [], AppDirs).
-
-find_app_docs(OtpSrc, Src) ->    
-    [ App | _Rest] = lists:reverse(string:tokens(Src, "/")),
-    AppDocRoot = OtpSrc++"/lib/"++App++"/doc/src/",
-    filelib:wildcard(AppDocRoot++"*.xml").
+find_docs(Otp) ->
+    Docs = [ filelib:wildcard(Src ++ "/doc/src/*.xml")
+             || Src <- filelib:wildcard(Otp++"/lib/*/"),
+                filelib:is_dir(Src) ],
+ 
+    lists:foldl(fun lists:append/2, [], Docs).
 
 simplexml_read_string(Str, Opts) ->
     {XML,_Rest} = xmerl_scan:string(Str, Opts),
@@ -221,51 +175,60 @@ simplexml_read_file(File, Opts) ->
     {ok, Bin} = file:read_file(File),
     simplexml_read_string(binary_to_list(Bin), Opts).
 
+% eugh: template to wrap pages in
 erlref_wrap(Xml) ->
     [{html, [], [        
-                         {head, [], [
-                                     {meta,  [{charset, "utf-8"}], []},
-                                     {title, [], ["bleh"]},
-                                      {link,  [{type, "text/css"}, {rel, "stylesheet"},
-                                               {href, "../erldocs.css"}], []}
-                                     ]},
-                         
-                          {body, [], [
-                   
-                                      {'div', [{id, "sidebar"}], [
-                                                                  {input, [{type, "text"}, {value,"Search"}, {id, "search"},
-                                                                           {autocomplete, "off"}], []},
-                                                                  {ul, [{id, "results"}], []}     
-                                                                 ]},
-                                      {'div', [{id, "content"}], Xml},
-                                      {script, [{src, "http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.js"}], [" "]},
-                                      {script, [{src, "../erldocs_index.js"}], [" "]},
-                                      {script, [{src, "../erldocs.js"}], [" "]}
-                                     ]}
-                         ]}].
+       {head, [], [
+         {meta,  [{charset, "utf-8"}], []},
+         {title, [], ["bleh"]},
+         {link,  [{type, "text/css"}, {rel, "stylesheet"},
+                  {href, "../erldocs.css"}], []}
+       ]},
+       {body, [], [
+         {'div', [{id, "sidebar"}], [
+           {input, [{type, "text"}, {value,"Search"}, {id, "search"},
+                    {autocomplete, "off"}], []},
+           {ul, [{id, "results"}], []}     
+         ]},
+         {'div', [{id, "content"}], Xml},
+         {script, [{src, "http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.js"}], [" "]},
+         {script, [{src, "../erldocs_index.js"}], [" "]},
+         {script, [{src, "../erldocs.js"}], [" "]}
+       ]}
+     ]}].
 
-%% erlref_wrap(Xml) ->
-%%     [{html, [], [
-%%                  {head, [], [
-%%                                       {meta,  [{charset, "utf-8"}], []},
-%%                                       {title, [], ["bl]}
-                             
-%%                             ]},
-%%                  {p, [], Xml}
-                 
-%%                 ] }].
-
-head() ->
-    "<link rel='stylesheet' href='../erldocs.css' type='text/css'>".
-
-top() ->
-    "<div id='sidebar'>"
-        "<input type='text' value='Search' id='search' autocomplete='off' />"
-        "<ul id='results'></ul>"
-        "</div>".
-
-bottom() ->
-    "<script src='http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.js'"
-        "></script>"
-        "<script src='../erldocs_index.js'></script>"
-        "<script src='../erldocs.js'></script>".
+% Transforms erlang xml format to html
+tr_erlref({header,[],_Child}) ->
+    ignore;
+tr_erlref({section,[],_Child}) ->
+    ignore;
+tr_erlref({marker, _Marker, _Child}) ->
+    ignore;
+tr_erlref({type, _Marker, _Child}) ->
+    ignore;
+tr_erlref({module,[],Module}) ->
+    {h1, [], [lists:flatten(Module)]};
+tr_erlref({modulesummary, [], Child}) ->
+    {h2, [], Child};
+tr_erlref({c, [], Child}) ->
+    {code, [], Child};
+tr_erlref({seealso, _Marker, Child}) ->
+    {span, [{class, "seealso"}], Child};
+tr_erlref({desc, [], Child}) ->
+    {p, [{class, "description"}], Child};
+tr_erlref({description, [], Child}) ->
+     {p, [{class, "description"}], Child};
+tr_erlref({funcs, [], Child}) ->
+    {'div', [{class,"functions"}], [{h3, [], ["Functions"]} | Child]};
+tr_erlref({func, [], Child}) ->
+    {'div', [{class,"function"}], Child};
+tr_erlref({tag, [], Child}) ->
+    {'div', [{class,"tag"}], Child};
+tr_erlref({item, [], Child}) ->
+    {'div', [{class,"item"}], Child};
+tr_erlref({name, [], Child}) ->
+    {h3, [], Child};
+tr_erlref({fsummary, [], _Child}) ->
+    ignore;
+tr_erlref(Else) ->
+    Else.
