@@ -110,7 +110,8 @@
       </desc>
     </func>
     <func>
-      <name>list_users(Options) -> {ok, Users} | {error, Reason} &lt;name>list_users(Port, Dir) -> {ok, Users} | {error, Reason}</name>
+      <name>list_users(Options) -> {ok, Users} | {error, Reason}</name>
+      <name>list_users(Port, Dir) -> {ok, Users} | {error, Reason}</name>
       <name>list_users(Address, Port, Dir) -> {ok, Users} | {error, Reason}</name>
       <fsummary>List users in the user database.</fsummary>
       <type>
@@ -230,7 +231,8 @@
       </desc>
     </func>
     <func>
-      <name>delete_group(GroupName, Options) -> true | {error,Reason} &lt;name>delete_group(GroupName, Port, Dir) -> true | {error, Reason}</name>
+      <name>delete_group(GroupName, Options) -> true | {error,Reason}</name>
+      <name>delete_group(GroupName, Port, Dir) -> true | {error, Reason}</name>
       <name>delete_group(GroupName, Address, Port, Dir) -> true | {error, Reason}</name>
       <fsummary>Deletes a group</fsummary>
       <type>
