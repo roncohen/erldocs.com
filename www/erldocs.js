@@ -101,7 +101,7 @@ ErlDocs.prototype.searchApps = function(str)
 
   for( var i=0, count=0; i < ErlDocs.index.length; i++ ) {
     var item = ErlDocs.index[i];
-    if ( item[2].match(str) !== null ) {
+    if ( item[2].match(new RegExp(str, "i")) !== null ) {
 
 	var hash = (item[0] == "fun") ? "#"+item[2].split(":")[1] : "";
 	

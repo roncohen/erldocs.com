@@ -28,7 +28,7 @@
     <date></date>
     <rev></rev>
   </header>
-  <module>erlang.el </module>
+  <module>erlang.el</module>
   <modulesummary>Erlang mode for Emacs </modulesummary>
   <description>
     <p>Possibly the most important feature of an editor designed for

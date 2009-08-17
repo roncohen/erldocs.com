@@ -1,6 +1,6 @@
 -module(erldocs).
 
--export([build/0, index/0 ]).
+-export([build/0, build/2, index/0 ]).
 
 -define(OTP_SRC, "erlsrc/otp_src_R13B").
 
@@ -31,23 +31,16 @@ build(Otp, [ DocSrc | Rest]) ->
 
     file:set_cwd(Root),
 
-    % TODO: eugh, remove try catch
-    try 
-        Opts = [ {encoding, "latin1"},
-                 {fetch_path, [Otp++"/lib/docbuilder/dtd/"]}],
-        {Type, _Attr, Content} = simplexml_read_file(DocSrc, Opts),
+    Opts = [ {encoding, "latin1"}, {fetch_path, [Otp++"/lib/docbuilder/dtd/"]}],
+    {Type, _Attr, Content} = simplexml_read_file(DocSrc, Opts),
         
-        case lists:member(Type, buildable()) of
-            false -> ok;
-            true  ->
-                OutDir = root()++"/www/"++App++"/",
-                ok = filelib:ensure_dir(OutDir),
-                Mod = filename:basename(File, ".xml"),
-                render(Type, App, Mod, Content)
-        end
-    catch
-        Error:Reason ->
-            io:format("Error: ~p~n~p : ~p~n",[DocSrc, Error, Reason])
+    case lists:member(Type, buildable()) of
+	false -> ok;
+	true  ->
+	    OutDir = root()++"/www/"++App++"/",
+	    ok = filelib:ensure_dir(OutDir),
+	    Mod = filename:basename(File, ".xml"),
+	    render(Type, App, Mod, Content)
     end,
     
     file:set_cwd(root()++"/src"),
@@ -62,7 +55,12 @@ render(erlref, App, Mod, Xml) ->
     file:write_file(File, HtmlStr).
 
 render(Fun, List) when is_list(List) ->
-    [ render(Fun, X) || X <- List ];
+    case io_lib:char_list(List) of 
+	true ->
+	    List;
+	false ->
+	    [ render(Fun, X) || X <- List ]
+    end;
 render(Fun, Element) ->
     case Fun(Element) of
         ignore               -> "";
@@ -82,7 +80,6 @@ index(Src) ->
 
     Index = lists:sort(Sort, index(Src, find_docs(Src), [])),
     
-
     Str = lists:flatten(io_lib:format("~p",[Index])),
     Js  = lists:flatten(io_lib:format("var index = ~s;",[Str])),
     file:write_file(root()++"/www/erldocs_index.js", Js), 
@@ -121,8 +118,8 @@ do_index(Otp, Src) ->
             
             {module, [], Module} = lists:keyfind(module, 1, Xml),
             {modulesummary, [], [Sum]} = lists:keyfind(modulesummary, 1, Xml),
-            
-            Mod  = string:join(Module, ""),
+            % strip silly shy characters
+            Mod  = [ X || X <- string:join(Module, ""), X =/= 173],
             Funs = get_funs(App, Mod, lists:keyfind(funcs, 1, Xml)),
             
             [ ["mod", App, Mod, string:substr(Sum, 1, 50)]
@@ -235,7 +232,7 @@ tr_erlref({seealso, _Marker, Child}) ->
 tr_erlref({desc, [], Child}) ->
     {p, [{class, "description"}], Child};
 tr_erlref({description, [], Child}) ->
-     {p, [{class, "description"}], Child};
+    {p, [{class, "description"}], Child};
 tr_erlref({funcs, [], Child}) ->
     {'div', [{class,"functions"}], [{h2, [], ["Functions"]}, {hr, [], []} | Child]};
 tr_erlref({func, [], Child}) ->
@@ -257,3 +254,34 @@ tr_erlref({fsummary, [], _Child}) ->
     ignore;
 tr_erlref(Else) ->
     Else.
+
+
+htmlize(List) when is_list(List) ->
+    htmlize_l(List);
+htmlize(Else) ->
+    Else.
+
+htmlize_l(List) ->    
+    htmlize_l(List, []).
+ 
+htmlize_l([], Acc) ->
+     lists:reverse(Acc);
+htmlize_l([$>|Tail], Acc) ->
+    htmlize_l(Tail, [$;,$t,$g,$&|Acc]);
+htmlize_l([$<|Tail], Acc) ->
+    htmlize_l(Tail, [$;,$t,$l,$&|Acc]);
+htmlize_l([$&|Tail], Acc) ->
+    htmlize_l(Tail, [$;,$p,$m,$a,$&|Acc]);
+htmlize_l([$"|Tail], Acc) ->
+    htmlize_l(Tail, [$; , $t, $o, $u, $q ,$&|Acc]);
+htmlize_l([160|Tail], Acc) ->
+    htmlize_l(Tail, [10|Acc]);
+           
+htmlize_l([X|Tail], Acc) when is_integer(X) ->
+    htmlize_l(Tail, [X|Acc]);
+htmlize_l([X|Tail], Acc) when is_binary(X) ->
+    X2 = htmlize_l(binary_to_list(X)),
+    htmlize_l(Tail, [X2|Acc]);
+htmlize_l([X|Tail], Ack) when is_list(X) ->
+    X2 = htmlize_l(X),
+    htmlize_l(Tail, [X2|Ack]).
