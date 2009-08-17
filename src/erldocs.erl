@@ -1,20 +1,22 @@
 -module(erldocs).
 
--export([build/0, index/0, find/0 ]).
+-export([build/0, index/0 ]).
 
--define(OTP_SRC, "/home/daleharvey/www/erldocs.com/erlsrc/otp_src_R13B").
--define(ROOT, "/home/daleharvey/www/erldocs.com").
+-define(OTP_SRC, "erlsrc/otp_src_R13B").
 
 % List of the type of xml files erldocs can build
 buildable() ->
     [ erlref ].
 
-find() ->
-    find_docs(?OTP_SRC).
+% bleh I hate doing this
+root() ->
+    {ok, Path} = file:get_cwd(),
+    ["src" | Rest] = lists:reverse(string:tokens(Path, "/")),
+    "/"++string:join(lists:reverse(Rest), "/").
 
 % Build the documentation
 build() ->
-    build(?OTP_SRC).
+    build(root() ++ "/" ++ ?OTP_SRC).
 build(Src) -> 
     ok = build(Src, find_docs(Src)).
 
@@ -38,7 +40,7 @@ build(Otp, [ DocSrc | Rest]) ->
         case lists:member(Type, buildable()) of
             false -> ok;
             true  ->
-                OutDir = ?ROOT++"/www/"++App++"/",
+                OutDir = root()++"/www/"++App++"/",
                 ok = filelib:ensure_dir(OutDir),
                 Mod = filename:basename(File, ".xml"),
                 render(Type, App, Mod, Content)
@@ -48,14 +50,15 @@ build(Otp, [ DocSrc | Rest]) ->
             io:format("Error: ~p~n~p : ~p~n",[DocSrc, Error, Reason])
     end,
     
-    file:set_cwd(?ROOT++"/src"),
+    file:set_cwd(root()++"/src"),
     
     build(Otp, Rest).
 
 render(erlref, App, Mod, Xml) ->
     Html = erlref_wrap(Mod, render(fun tr_erlref/1, Xml)),
-    File = ?ROOT++"/www/"++App++"/"++Mod++".html",
-    HtmlStr = lists:flatten(xmerl:export_simple(Html, xmerl_xml, [{prolog,"<!DOCTYPE html>"}])),
+    File = root()++"/www/"++App++"/"++Mod++".html",
+    HtmlStr = lists:flatten(xmerl:export_simple(Html, xmerl_xml,
+                                                [{prolog,"<!DOCTYPE html>"}])),
     file:write_file(File, HtmlStr).
 
 render(Fun, List) when is_list(List) ->
@@ -69,9 +72,8 @@ render(Fun, Element) ->
     end.
 
 index() ->
-    index(?OTP_SRC).
+    index(root() ++ "/" ++ ?OTP_SRC).
 index(Src) ->
-
     Sort = fun(["app" | _Rest1], ["mod" | _Rest2]) -> true;
 	      (["app" | _Rest1], ["fun" | _Rest2]) -> true;
 	      (["mod" | _Rest1], ["fun" | _Rest2]) -> true;
@@ -83,7 +85,7 @@ index(Src) ->
 
     Str = lists:flatten(io_lib:format("~p",[Index])),
     Js  = lists:flatten(io_lib:format("var index = ~s;",[Str])),
-    file:write_file(?ROOT++"/www/erldocs_index.js", Js), 
+    file:write_file(root()++"/www/erldocs_index.js", Js), 
     ok.
 
 index(_Otp, [], Acc) ->
@@ -99,7 +101,7 @@ index(Otp, [ DocSrc | Rest], Acc) ->
                  ignore -> Acc;
                  Else   -> lists:append(Else, Acc)
              end,
-    file:set_cwd(?ROOT++"/src"),
+    file:set_cwd(root()++"/src"),
     
     index(Otp, Rest, NewAcc).
 
@@ -156,8 +158,10 @@ make_name(Mod, Name) ->
         0 ->
             ignore;
         Pos ->
-            {Name2, _Rest2} = lists:split(Pos-1, Tmp),
-            Mod ++ ":" ++ Name2 ++ "/"
+            {Name2, Rest2} = lists:split(Pos-1, Tmp),
+            Args = string:substr(Rest2, 2, string:chr(Rest2, 41) - 2),
+            NArgs = length(string:tokens(Args, ",")),
+            Mod ++ ":" ++ Name2 ++ "/" ++ integer_to_list(NArgs)
     end.
                  
 to_string(Xml) ->
