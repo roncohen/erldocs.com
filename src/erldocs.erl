@@ -2,8 +2,8 @@
 
 -export([build/0, index/0, find/0 ]).
 
--define(OTP_SRC, "/home/dale/lib/erldocs.com/erlsrc/otp_src_R13B").
--define(ROOT, "/home/dale/lib/erldocs.com").
+-define(OTP_SRC, "/home/daleharvey/www/erldocs.com/erlsrc/otp_src_R13B").
+-define(ROOT, "/home/daleharvey/www/erldocs.com").
 
 % List of the type of xml files erldocs can build
 buildable() ->
@@ -48,14 +48,15 @@ build(Otp, [ DocSrc | Rest]) ->
             io:format("Error: ~p~n~p : ~p~n",[DocSrc, Error, Reason])
     end,
     
-    file:set_cwd(?ROOT),
+    file:set_cwd(?ROOT++"/src"),
     
     build(Otp, Rest).
 
 render(erlref, App, Mod, Xml) ->
-    Html = erlref_wrap(render(fun tr_erlref/1, Xml)),
+    Html = erlref_wrap(Mod, render(fun tr_erlref/1, Xml)),
     File = ?ROOT++"/www/"++App++"/"++Mod++".html",
-    file:write_file(File, to_string(Html)).
+    HtmlStr = lists:flatten(xmerl:export_simple(Html, xmerl_xml, [{prolog,"<!DOCTYPE html>"}])),
+    file:write_file(File, HtmlStr).
 
 render(Fun, List) when is_list(List) ->
     [ render(Fun, X) || X <- List ];
@@ -70,7 +71,16 @@ render(Fun, Element) ->
 index() ->
     index(?OTP_SRC).
 index(Src) ->
-    Index = index(Src, find_docs(Src), []),
+
+    Sort = fun(["app" | _Rest1], ["mod" | _Rest2]) -> true;
+	      (["app" | _Rest1], ["fun" | _Rest2]) -> true;
+	      (["mod" | _Rest1], ["fun" | _Rest2]) -> true;
+	      (_, _) -> false
+	   end,
+
+    Index = lists:sort(Sort, index(Src, find_docs(Src), [])),
+    
+
     Str = lists:flatten(io_lib:format("~p",[Index])),
     Js  = lists:flatten(io_lib:format("var index = ~s;",[Str])),
     file:write_file(?ROOT++"/www/erldocs_index.js", Js), 
@@ -89,7 +99,7 @@ index(Otp, [ DocSrc | Rest], Acc) ->
                  ignore -> Acc;
                  Else   -> lists:append(Else, Acc)
              end,
-    file:set_cwd(?ROOT),
+    file:set_cwd(?ROOT++"/src"),
     
     index(Otp, Rest, NewAcc).
 
@@ -176,11 +186,11 @@ simplexml_read_file(File, Opts) ->
     simplexml_read_string(binary_to_list(Bin), Opts).
 
 % eugh: template to wrap pages in
-erlref_wrap(Xml) ->
-    [{html, [], [        
+erlref_wrap(Module, Xml) ->
+    [{html, [{lang, "en"}], [        
        {head, [], [
          {meta,  [{charset, "utf-8"}], []},
-         {title, [], ["bleh"]},
+         {title, [], [Module ++ " - erldocs.com"]},
          {link,  [{type, "text/css"}, {rel, "stylesheet"},
                   {href, "../erldocs.css"}], []}
        ]},
@@ -188,7 +198,11 @@ erlref_wrap(Xml) ->
          {'div', [{id, "sidebar"}], [
            {input, [{type, "text"}, {value,"Search"}, {id, "search"},
                     {autocomplete, "off"}], []},
-           {ul, [{id, "results"}], []}     
+           {ul, [{id, "results"}], [" "]},
+	   {'div', [{class, "copystuff"}], [
+             {span, [], [" © Ericsson, "]},
+	     {a, [{target, "blank"}, {href, "http://github.com/daleharvey/erldocs.com/tree"}], ["Source (github)"]}
+           ]}		     
          ]},
          {'div', [{id, "content"}], Xml},
          {script, [{src, "http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.js"}], [" "]},
@@ -209,7 +223,7 @@ tr_erlref({type, _Marker, _Child}) ->
 tr_erlref({module,[],Module}) ->
     {h1, [], [lists:flatten(Module)]};
 tr_erlref({modulesummary, [], Child}) ->
-    {h2, [], Child};
+    {h2, [{class, "modsummary"}], Child};
 tr_erlref({c, [], Child}) ->
     {code, [], Child};
 tr_erlref({seealso, _Marker, Child}) ->
@@ -219,13 +233,19 @@ tr_erlref({desc, [], Child}) ->
 tr_erlref({description, [], Child}) ->
      {p, [{class, "description"}], Child};
 tr_erlref({funcs, [], Child}) ->
-    {'div', [{class,"functions"}], [{h3, [], ["Functions"]} | Child]};
+    {'div', [{class,"functions"}], [{h2, [], ["Functions"]}, {hr, [], []} | Child]};
 tr_erlref({func, [], Child}) ->
     {'div', [{class,"function"}], Child};
 tr_erlref({tag, [], Child}) ->
     {'div', [{class,"tag"}], Child};
+tr_erlref({taglist, [], Child}) ->
+    {ul, [], Child};
+tr_erlref({input, [], Child}) ->
+    {code, [], Child};
 tr_erlref({item, [], Child}) ->
-    {'div', [{class,"item"}], Child};
+    {li, [], Child};
+tr_erlref({list, _Type, Child}) ->
+    {ul, [], Child};
 tr_erlref({name, [], Child}) ->
     {h3, [], Child};
 tr_erlref({fsummary, [], _Child}) ->
