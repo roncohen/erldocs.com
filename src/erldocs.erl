@@ -33,7 +33,7 @@ build(Otp, [ DocSrc | Rest]) ->
 
     % TODO: eugh, remove try catch
     try 
-        Opts = [ {space, normalize}, {encoding, "latin1"},
+        Opts = [ {encoding, "latin1"},
                  {fetch_path, [Otp++"/lib/docbuilder/dtd/"]}],
         {Type, _Attr, Content} = simplexml_read_file(DocSrc, Opts),
         
@@ -143,16 +143,16 @@ fun_stuff(App, Mod, {func, [], Child}) ->
     Summary = string:substr(to_string(Xml), 1, 50),
     
     F = fun({name, [], Name}, Acc) ->
-                case make_name(Mod, Name) of
+                case make_name(Name) of
                     ignore -> Acc;
-                    NName  -> [ ["fun", App, NName, Summary] | Acc ]
+                    NName  -> [ ["fun", App, Mod++":"++NName, Summary] | Acc ]
                 end;
            (_Else, Acc) -> Acc
         end,
     
     lists:foldl(F, [], Child).
 
-make_name(Mod, Name) ->
+make_name(Name) ->
     Tmp = lists:flatten(Name),
     case string:chr(Tmp, 40) of
         0 ->
@@ -161,7 +161,7 @@ make_name(Mod, Name) ->
             {Name2, Rest2} = lists:split(Pos-1, Tmp),
             Args = string:substr(Rest2, 2, string:chr(Rest2, 41) - 2),
             NArgs = length(string:tokens(Args, ",")),
-            Mod ++ ":" ++ Name2 ++ "/" ++ integer_to_list(NArgs)
+            Name2 ++ "/" ++ integer_to_list(NArgs)
     end.
                  
 to_string(Xml) ->
@@ -251,7 +251,8 @@ tr_erlref({item, [], Child}) ->
 tr_erlref({list, _Type, Child}) ->
     {ul, [], Child};
 tr_erlref({name, [], Child}) ->
-    {h3, [], Child};
+    Name = make_name(Child),
+    {h3, [], [{a, [{name, Name}], [Child]}]};
 tr_erlref({fsummary, [], _Child}) ->
     ignore;
 tr_erlref(Else) ->

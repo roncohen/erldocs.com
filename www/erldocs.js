@@ -13,7 +13,7 @@ ErlDocs = function() {
     }
   });
 
-  that.search.keypress( function(e) {
+  that.search.keydown( function(e) {
     setTimeout( function() {
       that.keypress(e);
     },0);
@@ -102,12 +102,15 @@ ErlDocs.prototype.searchApps = function(str)
   for( var i=0, count=0; i < ErlDocs.index.length; i++ ) {
     var item = ErlDocs.index[i];
     if ( item[2].match(str) !== null ) {
-      var url = preurl+item[1]+"/"+item[2].split(":")[0]+".html?search="+str+"&i="+count;
-      html += '<li class="'+item[0]+'"><a href="'+url+'">'
-        +'<span class="dat">'+item[0]+'</span><span class="name">'+item[2]+"</span>"
-        +'<br /><span class="sub">'+item[3]+'</span>'
-        +'</a></li>';
 
+	var hash = (item[0] == "fun") ? "#"+item[2].split(":")[1] : "";
+	
+	var url = preurl+item[1]+"/"+item[2].split(":")[0]+".html?search="+str+"&i="+count + hash;
+	html += '<li class="'+item[0]+'"><a href="'+url+'">'
+	    +'<span class="dat">'+item[0]+'</span><span class="name">'+item[2]+"</span>"
+	    +'<br /><span class="sub">'+item[3]+'</span>'
+	    +'</a></li>';
+	
       if( count++ > 30 ) {
         break;
       }
@@ -122,6 +125,8 @@ ErlDocs.prototype.filter = function(str)
   if( str != "" ) {
     this.results[0].innerHTML = this.searchApps(str);
     this.setSelected(0);
+  } else {
+      this.showModules();
   }
 };
 
