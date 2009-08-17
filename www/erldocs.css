@@ -118,6 +118,7 @@ padding:10px;
 #sidebar input { 
  display:block;
  width:228px;
+ outline:none;
  font-family: 13px Arial, sans-serif;
  padding:2px;
  margin:3px;
@@ -150,6 +151,14 @@ border-color:    #CCC #999 #999 #CCC;
 
 #results li:hover {  
  background:#DDD;
+}
+
+#results li.selected {
+ background:#990033;
+ color:white;
+}
+#results li.selected a, #results li.selected span {
+ color:white;
 }
 
 #results .sub {  
