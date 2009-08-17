@@ -18,15 +18,46 @@ h1, h2, h3, h4, h5, h6 {
  font-weight:normal;
 }
 
+p {
+ margin:5px 0px 10px 0px;
+}
+
+hr {
+ height:1px;
+ background:#AAA;
+ color:#AAA;
+}
+
+.copystuff { 
+ padding:2px 0px 0px 4px;
+ font-size:10px;
+}
+
+.copystuff a { 
+ text-decoration:none;
+}
+
+#content li { margin: 0px 20px; }
+
 #content {  
- margin: 0px 10px 0px 270px;
- padding-top:10px;
+ margin: 0px 10px 0px 255px;
+ padding-top:0px;
 }
 
 h2 {  
- margin-top:20px; 
+ margin-top:0px; 
  font-size:17px;
  font-weight:normal;
+}
+
+h2.modsummary {
+ font-size:11px;
+ border-bottom: 1px solid #999;
+ margin-bottom:10px;
+}
+
+.functions {
+ margin-top:15px;
 }
 
 .function h3 {   
@@ -36,7 +67,6 @@ h2 {
 
 .function {  
  margin: 15px 0px;
- overflow: auto;
 }
 
 .function em, .function p {  
@@ -61,8 +91,8 @@ h2 {
 }
 
 code { 
-font-family:"Courier New","Andale Mono",monospace;
- }
+ font-family:"Courier New","Andale Mono",monospace;
+}
 
 pre {
 border:1px solid #DFECF1;
@@ -75,9 +105,10 @@ padding:10px;
 }
 
 #sidebar {  
- overflow-y: scroll;
+ overflow-y: hidden;
  overflow-x: hidden;
  position:fixed;
+ border-right:1px solid #999;
  width:240px;
  padding:0px;
  background:#EEE;
@@ -86,14 +117,22 @@ padding:10px;
 
 #sidebar input { 
  display:block;
- width:92%;
+ width:228px;
  font-family: 13px Arial, sans-serif;
  padding:2px;
  margin:3px;
+ border:1px solid;
+border-color:    #CCC #999 #999 #CCC;
+
 }
 
 #results {  
+ height:100%;
+ overflow-y:scroll;
+ overflow-x: hidden;
  list-style-type:none;
+ border-top:1px solid #999;
+ border-bottom:1px solid #999;
 }
 
 #results li a {  
@@ -102,10 +141,15 @@ padding:10px;
  position:relative;
  text-decoration:none;
  color:#111;
+ border-bottom:1px solid #DDD;
+}
+
+#results .name {
+ padding-left:33px;
 }
 
 #results li:hover {  
- background:#FFF;
+ background:#DDD;
 }
 
 #results .sub {  
@@ -115,14 +159,16 @@ padding:10px;
 }
 
 #results .dat {  
+ -moz-border-radius:    3px;
+ -webkit-border-radius: 3px;
  font-size:11px;
  line-height:11px;
  padding:2px;
  font-weight:bold;
  color:white;
+ position:absolute;
  display:block;
  width:25px;
- float:left;
  margin:2px 5px 0px 0px;
  text-align:center;
 }
