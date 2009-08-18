@@ -1,66 +1,126 @@
 -module(erldocs).
 
--export([build/0, build/2, index/0 ]).
+-export([ all/1 ]).
 
--define(OTP_SRC, "erlsrc/otp_src_R13B").
-
-% List of the type of xml files erldocs can build
-buildable() ->
-    [ erlref ].
-
-% bleh I hate doing this
-root() ->
-    {ok, Path} = file:get_cwd(),
-    ["src" | Rest] = lists:reverse(string:tokens(Path, "/")),
-    "/"++string:join(lists:reverse(Rest), "/").
-
-% Build the documentation
-build() ->
-    build(root() ++ "/" ++ ?OTP_SRC).
-build(Src) -> 
-    ok = build(Src, find_docs(Src)).
-
-build(_Otp, []) ->
-    ok;
-build(Otp, [ DocSrc | Rest]) ->
-
-    [File, "src", "doc", App | Path]
-        = lists:reverse(string:tokens(DocSrc, "/")),
+all(Otp) ->
     
-    Root = string:join(lists:reverse(Path), "/")++"/"++App++"/doc/src",
+    ok = build(Otp),
+    ok = index(Otp),
 
-    file:set_cwd(Root),
+    % Generate index page
+    Html    = erlref_wrap("index", "", ""),
+    File    = filename:join([root(), "www", Otp, "index.html"]),
+    HtmlStr = xml_to_str(Html, "<!DOCTYPE html>"),
+    ok = file:write_file(File, HtmlStr).
 
-    Opts = [ {encoding, "latin1"}, {fetch_path, [Otp++"/lib/docbuilder/dtd/"]}],
-    {Type, _Attr, Content} = simplexml_read_file(DocSrc, Opts),
-        
+% Build the documentation files
+build(Src) ->
+    [ ok = build(Src, File) || File <- find_docs(Src) ],
+    ok.
+
+build(Otp, DocSrc) ->
+    
+    {Type, _Attr, Content} = read_xml(root(), Otp, DocSrc),
+    
     case lists:member(Type, buildable()) of
-	false -> ok;
-	true  ->
-	    OutDir = root()++"/www/"++App++"/",
-	    ok = filelib:ensure_dir(OutDir),
-	    Mod = filename:basename(File, ".xml"),
-	    render(Type, App, Mod, Content)
-    end,
-    
-    file:set_cwd(root()++"/src"),
-    
-    build(Otp, Rest).
+        false -> ok;
+        true  ->
+            [File, "src", "doc", App | _Path]
+                = lists:reverse(filename:split(DocSrc)),
+            Mod = filename:basename(File, ".xml"),
+            render(Type, root(), Otp, App, Mod, Content)
+    end.
 
-render(erlref, App, Mod, Xml) ->
-    Html = erlref_wrap(Mod, render(fun tr_erlref/1, Xml)),
-    File = root()++"/www/"++App++"/"++Mod++".html",
-    HtmlStr = lists:flatten(xmerl:export_simple(Html, xmerl_xml,
-                                                [{prolog,"<!DOCTYPE html>"}])),
-    file:write_file(File, HtmlStr).
+index(Otp) ->
+    
+    Sort = fun(["app" | _Rest1], ["mod" | _Rest2]) -> true;
+              (["app" | _Rest1], ["fun" | _Rest2]) -> true;
+              (["mod" | _Rest1], ["fun" | _Rest2]) -> true;
+              (_, _) -> false
+           end,
+
+    Index = index(Otp, find_docs(Otp), []),
+    % Heh, cheating, will probably break
+    Js = format("var index = ~p;",[lists:sort(Sort, Index)]),
+    
+    File = filename:join([root(), "www", Otp, "erldocs_index.js"]),
+    ok   = file:write_file(File, Js).
+
+index(_Otp, [], Acc) ->
+    Acc;
+
+index(Otp, [ DocSrc | Rest], Acc) ->
+    
+    NewAcc = case do_index(Otp, DocSrc) of
+                 ignore -> Acc;
+                 Else   -> lists:append(Else, Acc)
+             end,
+    
+    index(Otp, Rest, NewAcc).
+
+do_index(Otp, Src) ->
+    
+    {Type, _Attr, Content}
+        = read_xml(root(), Otp, Src, [{space, normalize}]),
+    
+    case lists:member(Type, buildable()) of
+        false -> ignore;
+        true  ->
+            
+            [_File, "src", "doc", App | _Path]
+                = lists:reverse(filename:split(Src)),
+            Xml = strip_whitespace(Content),
+            
+            {module, [], Module}       = lists:keyfind(module, 1, Xml),
+            {modulesummary, [], [Sum]} = lists:keyfind(modulesummary, 1, Xml),
+            
+            % strip silly shy characters
+            Mod  = [ X || X <- string:join(Module, ""), X =/= 173],
+            Funs = get_funs(App, Mod, lists:keyfind(funcs, 1, Xml)),
+            Summary = string:substr(Sum, 1, 50),
+            
+            [ ["mod", App, Mod, Summary] |  Funs]    
+    end.
+
+format(Str, Args) ->
+    lists:flatten(io_lib:format(Str, Args)).
+
+% Read an xml file, need to cd into the xml directory because files
+% are addressed relative to it, and cd back to everything else works
+read_xml(Root, Otp, XmlFile) ->
+    read_xml(Root, Otp, XmlFile, []).
+
+read_xml(Root, Otp, XmlFile, Opts) ->
+    
+    file:set_cwd(filename:dirname(XmlFile)),
+    
+    OtpSrc = filename:join([Root, "erlsrc", Otp]),
+    NOpts  = [{fetch_path, [OtpSrc++"/lib/docbuilder/dtd/"]},
+              {encoding,   "latin1"}] ++ Opts,
+    
+    {ok, Bin}    = file:read_file(XmlFile),
+    {Xml, _Rest} = xmerl_scan:string(binary_to_list(Bin), NOpts),
+    
+    file:set_cwd(filename:join([Root, "src"])),    
+    
+    xmerl_lib:simplify_element(Xml).
+
+
+render(erlref, Root, Otp, App, Mod, Xml) ->
+    
+    File = filename:join([Root, "www", Otp, App, Mod++".html"]),
+    ok   = filelib:ensure_dir(filename:dirname(File)++"/"),
+
+    Html    = erlref_wrap(Mod, render(fun tr_erlref/1, Xml), "../"),
+    HtmlStr = xml_to_str(Html, "<!DOCTYPE html>"),
+    ok = file:write_file(File, HtmlStr).
 
 render(Fun, List) when is_list(List) ->
     case io_lib:char_list(List) of 
-	true ->
-	    List;
-	false ->
-	    [ render(Fun, X) || X <- List ]
+        true  -> List;
+        false -> [ render(Fun, X) || X <- List ]
     end;
+
 render(Fun, Element) ->
     case Fun(Element) of
         ignore               -> "";
@@ -69,75 +129,27 @@ render(Fun, Element) ->
         Else                 -> Else
     end.
 
-index() ->
-    index(root() ++ "/" ++ ?OTP_SRC).
-index(Src) ->
-    Sort = fun(["app" | _Rest1], ["mod" | _Rest2]) -> true;
-	      (["app" | _Rest1], ["fun" | _Rest2]) -> true;
-	      (["mod" | _Rest1], ["fun" | _Rest2]) -> true;
-	      (_, _) -> false
-	   end,
+% List of the type of xml files erldocs can build
+buildable() ->
+    [ erlref ].
 
-    Index = lists:sort(Sort, index(Src, find_docs(Src), [])),
-    
-    Str = lists:flatten(io_lib:format("~p",[Index])),
-    Js  = lists:flatten(io_lib:format("var index = ~s;",[Str])),
-    file:write_file(root()++"/www/erldocs_index.js", Js), 
-    ok.
-
-index(_Otp, [], Acc) ->
-    Acc;
-
-index(Otp, [ DocSrc | Rest], Acc) ->
-    
-    [_File | Path] = lists:reverse(string:tokens(DocSrc, "/")),
-    Root = string:join(lists:reverse(Path), "/"),
-    
-    file:set_cwd(Root),
-    NewAcc = case do_index(Otp, DocSrc) of
-                 ignore -> Acc;
-                 Else   -> lists:append(Else, Acc)
-             end,
-    file:set_cwd(root()++"/src"),
-    
-    index(Otp, Rest, NewAcc).
-
-do_index(Otp, Src) ->
-
-    [_File, "src", "doc", App | _Path]
-        = lists:reverse(string:tokens(Src, "/")),
-    
-    Opts = [ {space, normalize}, {encoding, "latin1"},
-             {fetch_path, [Otp++"/lib/docbuilder/dtd/"]}],
-    {Typ, _Attr, Content} = simplexml_read_file(Src, Opts),
-        
-    case lists:member(Typ, buildable()) of
-        false -> ignore;
-        true  ->
-            Xml = strip_whitespace(Content),
-            
-            {module, [], Module} = lists:keyfind(module, 1, Xml),
-            {modulesummary, [], [Sum]} = lists:keyfind(modulesummary, 1, Xml),
-            % strip silly shy characters
-            Mod  = [ X || X <- string:join(Module, ""), X =/= 173],
-            Funs = get_funs(App, Mod, lists:keyfind(funcs, 1, Xml)),
-            
-            [ ["mod", App, Mod, string:substr(Sum, 1, 50)]
-              |  Funs]    
-    end.
+% bleh I hate doing this
+root() ->
+    {ok, Path} = file:get_cwd(),
+    ["src" | Rest] = lists:reverse(filename:split(Path)),
+    filename:join(lists:reverse(Rest)).
 
 get_funs(_App, _Mod, false) ->
     [];
 get_funs(App, Mod, {funcs, [], Funs}) ->
     lists:foldl(
-      fun(X, Acc) ->
-              lists:append(fun_stuff(App, Mod, X), Acc)
-      end, [], Funs).
+      fun(X, Acc) -> fun_stuff(App, Mod, X) ++ Acc end,
+      [], Funs).
     
 fun_stuff(App, Mod, {func, [], Child}) ->
     
     {fsummary, [], Xml} = lists:keyfind(fsummary, 1, Child),
-    Summary = string:substr(to_string(Xml), 1, 50),
+    Summary = string:substr(xml_to_str(Xml, []), 1, 50),
     
     F = fun({name, [], Name}, Acc) ->
                 case make_name(Name) of
@@ -160,9 +172,9 @@ make_name(Name) ->
             NArgs = length(string:tokens(Args, ",")),
             Name2 ++ "/" ++ integer_to_list(NArgs)
     end.
-                 
-to_string(Xml) ->
-    lists:flatten(xmerl:export_simple(Xml, xmerl_xml, [{prolog,[]}])).
+
+xml_to_str(Xml, Prolog) ->
+    lists:flatten(xmerl:export_simple(Xml, xmerl_xml, [{prolog, Prolog}])).
 
 strip_whitespace(List) when is_list(List) ->
     [ strip_whitespace(X) || X <- List, X =/= " "];
@@ -170,30 +182,22 @@ strip_whitespace({El,Attr,Children}) ->
     {El, Attr, strip_whitespace(Children)};
 strip_whitespace(Else) ->
     Else.
-    
+
 find_docs(Otp) ->
+    OtpSrc = root() ++ "/erlsrc/" ++ Otp,
     Docs = [ filelib:wildcard(Src ++ "/doc/src/*.xml")
-             || Src <- filelib:wildcard(Otp++"/lib/*/"),
+             || Src <- filelib:wildcard(OtpSrc++"/lib/*/"),
                 filelib:is_dir(Src) ],
- 
     lists:foldl(fun lists:append/2, [], Docs).
 
-simplexml_read_string(Str, Opts) ->
-    {XML,_Rest} = xmerl_scan:string(Str, Opts),
-    xmerl_lib:simplify_element(XML).
-
-simplexml_read_file(File, Opts) ->
-    {ok, Bin} = file:read_file(File),
-    simplexml_read_string(binary_to_list(Bin), Opts).
-
 % eugh: template to wrap pages in
-erlref_wrap(Module, Xml) ->
+erlref_wrap(Module, Xml, Base) ->
     [{html, [{lang, "en"}], [        
        {head, [], [
          {meta,  [{charset, "utf-8"}], []},
          {title, [], [Module ++ " - erldocs.com"]},
          {link,  [{type, "text/css"}, {rel, "stylesheet"},
-                  {href, "../erldocs.css"}], []}
+                  {href, Base++"../erldocs.css"}], []}
        ]},
        {body, [], [
          {'div', [{id, "sidebar"}], [
@@ -207,8 +211,8 @@ erlref_wrap(Module, Xml) ->
          ]},
          {'div', [{id, "content"}], Xml},
          {script, [{src, "http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.js"}], [" "]},
-         {script, [{src, "../erldocs_index.js"}], [" "]},
-         {script, [{src, "../erldocs.js"}], [" "]}
+         {script, [{src, Base++"erldocs_index.js"}], [" "]},
+         {script, [{src, Base++"../erldocs.js"}], [" "]}
        ]}
      ]}].
 
@@ -254,34 +258,3 @@ tr_erlref({fsummary, [], _Child}) ->
     ignore;
 tr_erlref(Else) ->
     Else.
-
-
-htmlize(List) when is_list(List) ->
-    htmlize_l(List);
-htmlize(Else) ->
-    Else.
-
-htmlize_l(List) ->    
-    htmlize_l(List, []).
- 
-htmlize_l([], Acc) ->
-     lists:reverse(Acc);
-htmlize_l([$>|Tail], Acc) ->
-    htmlize_l(Tail, [$;,$t,$g,$&|Acc]);
-htmlize_l([$<|Tail], Acc) ->
-    htmlize_l(Tail, [$;,$t,$l,$&|Acc]);
-htmlize_l([$&|Tail], Acc) ->
-    htmlize_l(Tail, [$;,$p,$m,$a,$&|Acc]);
-htmlize_l([$"|Tail], Acc) ->
-    htmlize_l(Tail, [$; , $t, $o, $u, $q ,$&|Acc]);
-htmlize_l([160|Tail], Acc) ->
-    htmlize_l(Tail, [10|Acc]);
-           
-htmlize_l([X|Tail], Acc) when is_integer(X) ->
-    htmlize_l(Tail, [X|Acc]);
-htmlize_l([X|Tail], Acc) when is_binary(X) ->
-    X2 = htmlize_l(binary_to_list(X)),
-    htmlize_l(Tail, [X2|Acc]);
-htmlize_l([X|Tail], Ack) when is_list(X) ->
-    X2 = htmlize_l(X),
-    htmlize_l(Tail, [X2|Ack]).
