@@ -8,9 +8,7 @@ ErlDocs = function() {
   this.resultsCount = 0;
 
   that.search.focus( function() {
-    if( that.search.val() == "Search" ) {
       that.search.val("");
-    }
   });
 
   that.search.keydown( function(e) {
@@ -27,8 +25,9 @@ ErlDocs = function() {
   var qs = ErlDocs.parse_query(document.location.href);
 
   if( qs && qs.search ) {
-      this.search.val(qs.search);
-      this.filter(qs.search);
+      var search_val = decodeURIComponent(qs.search.replace(/\+/g,  " "));
+      this.search.val(search_val);
+      this.filter(search_val);
   } else {
       this.showModules();
   }
@@ -75,7 +74,7 @@ ErlDocs.prototype.window_resize = function()
 ErlDocs.prototype.showModules = function()
 {
   var html = "";
-  var preurl = document.location.href.match("index.html") == null ? "../" : "";
+  var preurl = !ErlDocs.is_home() ? "../" : "";
 
   for( var i=0, count=0; i < ErlDocs.index.length; i++ ) {
     var item = ErlDocs.index[i];
@@ -89,19 +88,19 @@ ErlDocs.prototype.showModules = function()
     }
   }
   this.results[0].innerHTML = html;
-  this.setSelected(0);
   this.resultsCount = count;
+  this.setSelected(0);
 };
-
 
 ErlDocs.prototype.searchApps = function(str)
 {
   var html = "";
-  var preurl = document.location.href.match("index.html") == null ? "../" : "";
+  var preurl = !ErlDocs.is_home() ? "../" : "";
+  var terms = str.split(" ");
 
   for( var i=0, count=0; i < ErlDocs.index.length; i++ ) {
     var item = ErlDocs.index[i];
-    if ( item[2].match(new RegExp(str, "i")) !== null ) {
+    if ( ErlDocs.match(item[2], terms) ) {
 
 	var hash = (item[0] == "fun") ? "#"+item[2].split(":")[1] : "";
 	
@@ -130,6 +129,22 @@ ErlDocs.prototype.filter = function(str)
   }
 };
 
+ErlDocs.match = function(str, terms)
+{
+    for( var i = 0; i < terms.length; i++ ) {
+	if( str.match(new RegExp(terms[i], "i")) == null ) {
+	    return false;
+	}
+    }
+    return true;
+};
+   
+// This is a nasty check
+ErlDocs.is_home = function() 
+{
+    return document.title == "index - erldocs.com";
+};
+    
 ErlDocs.parse_query = function(url)
 {
     var qs = url.split("?")[1];

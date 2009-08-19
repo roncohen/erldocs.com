@@ -14,12 +14,24 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
- color:#2B2720;
+ color:#333;
  font-weight:normal;
 }
 
 p {
  margin:5px 0px 10px 0px;
+ color:#222;
+}
+
+h1 {  
+ font-size:24px;
+ font-weight:bold;
+}
+
+h2 {  
+ margin-top:0px; 
+ font-size:17px;
+ font-weight:normal;
 }
 
 hr {
@@ -41,13 +53,7 @@ hr {
 
 #content {  
  margin: 0px 10px 0px 255px;
- padding-top:0px;
-}
-
-h2 {  
- margin-top:0px; 
- font-size:17px;
- font-weight:normal;
+ padding:10px;
 }
 
 h2.modsummary {
@@ -96,9 +102,9 @@ code {
 
 pre {
 border:1px solid #DFECF1;
-color:#25221D;
+color:#111;
 font-family:"Courier New","Andale Mono",monospace;
-font-size:12px;
+font-size:13px;
 line-height:normal;
 overflow:auto;
 padding:10px;
@@ -143,6 +149,7 @@ border-color:    #CCC #999 #999 #CCC;
  text-decoration:none;
  color:#111;
  border-bottom:1px solid #DDD;
+ overflow:hidden;
 }
 
 #results .name {

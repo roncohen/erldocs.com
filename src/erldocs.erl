@@ -8,7 +8,7 @@ all(Otp) ->
     ok = index(Otp),
 
     % Generate index page
-    Html    = erlref_wrap("index", "", ""),
+    Html    = erlref_wrap("index", index_tpl(), ""),
     File    = filename:join([root(), "www", Otp, "index.html"]),
     HtmlStr = xml_to_str(Html, "<!DOCTYPE html>"),
     ok = file:write_file(File, HtmlStr).
@@ -201,7 +201,7 @@ erlref_wrap(Module, Xml, Base) ->
        ]},
        {body, [], [
          {'div', [{id, "sidebar"}], [
-           {input, [{type, "text"}, {value,"Search"}, {id, "search"},
+           {input, [{type, "text"}, {value,"Loading..."}, {id, "search"},
                     {autocomplete, "off"}], []},
            {ul, [{id, "results"}], [" "]},
 	   {'div', [{class, "copystuff"}], [
@@ -215,6 +215,9 @@ erlref_wrap(Module, Xml, Base) ->
          {script, [{src, Base++"../erldocs.js"}], [" "]}
        ]}
      ]}].
+
+index_tpl() ->
+    [{h2, [], ["Welome to erldocs.com"]}].
 
 % Transforms erlang xml format to html
 tr_erlref({header,[],_Child}) ->
@@ -234,9 +237,9 @@ tr_erlref({c, [], Child}) ->
 tr_erlref({seealso, _Marker, Child}) ->
     {span, [{class, "seealso"}], Child};
 tr_erlref({desc, [], Child}) ->
-    {p, [{class, "description"}], Child};
+    {'div', [{class, "description"}], Child};
 tr_erlref({description, [], Child}) ->
-    {p, [{class, "description"}], Child};
+    {'div', [{class, "description"}], Child};
 tr_erlref({funcs, [], Child}) ->
     {'div', [{class,"functions"}], [{h2, [], ["Functions"]}, {hr, [], []} | Child]};
 tr_erlref({func, [], Child}) ->
@@ -253,7 +256,7 @@ tr_erlref({list, _Type, Child}) ->
     {ul, [], Child};
 tr_erlref({name, [], Child}) ->
     Name = make_name(Child),
-    {h3, [], [{a, [{name, Name}], [Child]}]};
+    {h3, [{id, Name}], [Child]};
 tr_erlref({fsummary, [], _Child}) ->
     ignore;
 tr_erlref(Else) ->
