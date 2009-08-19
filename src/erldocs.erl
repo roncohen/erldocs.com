@@ -296,6 +296,10 @@ htmlchars(List) ->
 htmlchars([], Acc) ->
     lists:flatten(lists:reverse(Acc));
 
+htmlchars([$<|Rest], Acc) ->
+    htmlchars(Rest, ["&lt;" | Acc]);
+htmlchars([$>|Rest], Acc) ->
+    htmlchars(Rest, ["&gt;" | Acc]);
 htmlchars([160|Rest], Acc) ->
     htmlchars(Rest, ["&nbsp;" | Acc]);
 htmlchars([Else|Rest], Acc) ->
