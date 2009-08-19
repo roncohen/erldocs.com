@@ -165,6 +165,7 @@ make_name(Name) ->
     Tmp = lists:flatten(Name),
     case string:chr(Tmp, 40) of
         0 ->
+            io:format("wtf ~p~n",[Name]),
             ignore;
         Pos ->
             {Name2, Rest2} = lists:split(Pos-1, Tmp),
@@ -174,7 +175,8 @@ make_name(Name) ->
     end.
 
 xml_to_str(Xml, Prolog) ->
-    lists:flatten(xmerl:export_simple(Xml, xmerl_xml, [{prolog, Prolog}])).
+    Prolog ++ xml_to_html(Xml).
+%    lists:flatten(xmerl:export_simple(Xml, xmerl_xml, [{prolog, Prolog}])).
 
 strip_whitespace(List) when is_list(List) ->
     [ strip_whitespace(X) || X <- List, X =/= " "];
@@ -192,12 +194,12 @@ find_docs(Otp) ->
 
 % eugh: template to wrap pages in
 erlref_wrap(Module, Xml, Base) ->
-    [{html, [{lang, "en"}], [        
-       {head, [], [
-         {meta,  [{charset, "utf-8"}], []},
-         {title, [], [Module ++ " - erldocs.com"]},
+    [{html, [{lang, "en"}], ["\n",
+         {head, [], [
+         {meta,  [{charset, "utf-8"}], []},"\n",
+         {title, [], [Module ++ " - erldocs.com"]},"\n",
          {link,  [{type, "text/css"}, {rel, "stylesheet"},
-                  {href, Base++"../erldocs.css"}], []}
+                  {href, Base++"../erldocs.css"}], []}, "\n"
        ]},
        {body, [], [
          {'div', [{id, "sidebar"}], [
@@ -255,9 +257,47 @@ tr_erlref({item, [], Child}) ->
 tr_erlref({list, _Type, Child}) ->
     {ul, [], Child};
 tr_erlref({name, [], Child}) ->
-    Name = make_name(Child),
-    {h3, [{id, Name}], [Child]};
+    case make_name(Child) of
+        ignore -> ignore;
+        Name   -> {h3, [{id, Name}], [Child]}
+    end;
 tr_erlref({fsummary, [], _Child}) ->
     ignore;
 tr_erlref(Else) ->
     Else.
+
+attr_to_str([]) ->
+    "";
+attr_to_str(List) when is_list(List) ->
+    string:join([ attr_to_str(X) || X <- List ], " ");
+attr_to_str({Name, Val}) ->
+    atom_to_list(Name) ++ "=\""++Val++"\"".
+
+xml_to_html({Tag, Attr, []}) ->
+    lists:flatten([$<, atom_to_list(Tag), " ", attr_to_str(Attr), " />"]);
+xml_to_html({Tag, [], []}) ->
+    lists:flatten([$<, atom_to_list(Tag), " />"]);
+xml_to_html({Tag, [], Child}) ->
+    Tg = atom_to_list(Tag), 
+    lists:flatten([$<, Tg, $>, xml_to_html(Child),"</", Tg, $>]);
+xml_to_html({Tag, Attr, Child}) ->
+    Tg = atom_to_list(Tag), 
+    lists:flatten([$<, Tg, " ", attr_to_str(Attr), $>,
+                   xml_to_html(Child),"</", Tg, $>]);
+xml_to_html(List) when is_list(List) ->
+    case io_lib:char_list(List) of
+        true  -> htmlchars(List);
+        false -> lists:flatten([ xml_to_html(X) || X <- List])
+    end.
+
+htmlchars(List) ->
+    htmlchars(List, []).
+
+htmlchars([], Acc) ->
+    lists:flatten(lists:reverse(Acc));
+
+htmlchars([160|Rest], Acc) ->
+    htmlchars(Rest, ["&nbsp;" | Acc]);
+htmlchars([Else|Rest], Acc) ->
+    htmlchars(Rest, [Else | Acc]).
+    
