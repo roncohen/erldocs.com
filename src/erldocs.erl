@@ -111,38 +111,40 @@ render(erlref, Root, Otp, App, Mod, Xml) ->
     File = filename:join([Root, "www", Otp, App, Mod++".html"]),
     ok   = filelib:ensure_dir(filename:dirname(File)++"/"),
 
-    {Acc, NXml} = render(fun tr_erlref/2, Xml, []),
+    {_Acc, NXml} = render(fun tr_erlref/2, Xml, []),
     Html    = erlref_wrap(Mod, NXml, "../"),
     HtmlStr = xml_to_str(Html, "<!DOCTYPE html>"),
     ok = file:write_file(File, HtmlStr).
 
 render(Fun, List, Acc) when is_list(List) ->
     case io_lib:char_list(List) of 
-        true  -> {Acc, List};
-        false -> 
-	    F = fun({Ac, List}, X) ->
-			{NAcc, NEl} = render(Fun, X, Ac),
-			{NAcc, [NEl | List]}
-		end,
-
-	    lists:foldl(F, Acc, List) 
+        true  ->
+            {Acc, List};
+        false ->
+            F = fun(X, {Ac, L}) ->
+                        {NAcc, NEl} = render(Fun, X, Ac),
+                        {NAcc, [NEl | L]}
+                end,
+            
+            {Ac, L} = lists:foldl(F, {Acc, []}, List),
+            {Ac, lists:reverse(L)}
     end;
 
 render(Fun, Element, Acc) ->
 
     % this is nasty
     F = fun(ignore, NAcc) -> 
-		{NAcc, ""};
-	   ({NEl, NAttr, NChild}, NAcc) ->
-		{NNAcc, NNChild} = render(Fun, NChild, NAcc),
-		{NNAcc, {NEl, NAttr, NNChild}};
-	   (Else, NAcc) ->
-		{NAcc, Else}
-	end,
+                {NAcc, ""};
+           ({NEl, NAttr, NChild}, NAcc) ->
+                {NNAcc, NNChild} = render(Fun, NChild, NAcc),
+                {NNAcc, {NEl, NAttr, NNChild}};
+           (Else, NAcc) ->
+                {NAcc, Else}
+        end,
     
-    case Fun(Element) of
-	{El, NAcc} -> F(El, NAcc);
-	Else       -> F(Else, Acc)
+    case Fun(Element, Acc) of
+        {El, NAcc} -> F(El, NAcc);
+        El         -> F(El, Acc)
     end.
 
 % List of the type of xml files erldocs can build
@@ -202,11 +204,15 @@ strip_whitespace(Else) ->
     Else.
 
 find_docs(Otp) ->
+    
     OtpSrc = root() ++ "/erlsrc/" ++ Otp,
     Docs = [ filelib:wildcard(Src ++ "/doc/src/*.xml")
              || Src <- filelib:wildcard(OtpSrc++"/lib/*/"),
                 filelib:is_dir(Src) ],
-    lists:foldl(fun lists:append/2, [], Docs).
+
+    Erts = filelib:wildcard(OtpSrc ++ "/erts/doc/src/*.xml"),
+    
+    lists:foldl(fun lists:append/2, [], Docs) ++ Erts.
 
 % eugh: template to wrap pages in
 erlref_wrap(Module, Xml, Base) ->
