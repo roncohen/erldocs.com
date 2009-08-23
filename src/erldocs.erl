@@ -280,7 +280,7 @@ erlref_wrap(Module, Xml, Base) ->
        {head, [],
         [
          {meta,  [{charset, "utf-8"}], []},"\n",
-         {title, [], [Module ++ " - erldocs.com"]},"\n",
+         {title, [], [Module ++ " - erldocs.com (Erlang Documentation)"]},"\n",
          {link,  [{type, "text/css"}, {rel, "stylesheet"},
                   {href, Base++"../erldocs.css"}], []}, "\n"
         ]},
