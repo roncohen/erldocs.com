@@ -8,7 +8,9 @@ ErlDocs = function() {
   this.resultsCount = 0;
 
   that.search.focus( function() {
+    if(that.search.val() == "Loading...") {
       that.search.val("");
+    }
   });
 
   that.search.keydown( function(e) {

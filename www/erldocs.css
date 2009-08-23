@@ -122,18 +122,54 @@ padding:10px;
 }
 
 #sidebar input { 
+-moz-border-radius:    5px;
+ -webkit-border-radius: 5px;
  display:block;
- width:228px;
+ width:200px;
+ float:left;
  outline:none;
  font-family: 13px Arial, sans-serif;
  padding:2px;
+ text-indent:5px;
  margin:3px;
  border:1px solid;
 border-color:    #CCC #999 #999 #CCC;
-
 }
 
-#results {  
+#sidebar input:focus {
+ -moz-box-shadow: 0px 0px 1px #888;
+ -webkit-box-shadow: 0px 0px 1px #888;
+}
+
+#expand {
+-moz-border-radius:    5px;
+ -webkit-border-radius: 5px;
+ display:block;
+ width:15px;
+ background:#FFF;
+ height:13px;
+ cursor:pointer;
+ color:#333;
+ line-height:13px;
+ float:right;
+ outline:none;
+ font-family: 13px Arial, sans-serif;
+ padding:2px;
+ text-indent:5px;
+ margin:3px;
+ border:1px solid;
+ border-color:    #CCC #999 #999 #CCC;
+ text-decoration:none;
+}
+
+#expand:hover {
+ border-color:    #AAA #777 #777 #AAA;
+ -moz-box-shadow: 0px 0px 1px #888;
+ -webkit-box-shadow: 0px 0px 1px #888;
+}
+
+#results { 
+ clear:both; 
  height:100%;
  overflow-y:scroll;
  overflow-x: hidden;
