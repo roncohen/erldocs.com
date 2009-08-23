@@ -66,8 +66,8 @@ ErlDocs.prototype.keypress = function(e)
     } else if( e.keyCode == 38 ) {    //UP
 	this.setSelected(this.selected - 1, false);
     } else if ( e.keyCode == 13 ) { //ENTER
-	document.location.href =
-        this.results.children("li:eq("+this.selected+") a").attr("href");
+      document.location.href =
+          this.results.children(".selected").find("a").attr("href");
     } else {
 	this.filter(this.search.val());
     }
@@ -138,12 +138,12 @@ ErlDocs.prototype.filter = function(str)
 
 ErlDocs.match = function(str, terms)
 {
-    for( var i = 0; i < terms.length; i++ ) {
+  for( var i = 0; i < terms.length; i++ ) {
 	if( str.match(new RegExp(terms[i], "i")) == null ) {
 	    return false;
 	}
-    }
-    return true;
+  }
+  return true;
 };
 
 // This is a nasty check
