@@ -111,22 +111,38 @@ render(erlref, Root, Otp, App, Mod, Xml) ->
     File = filename:join([Root, "www", Otp, App, Mod++".html"]),
     ok   = filelib:ensure_dir(filename:dirname(File)++"/"),
 
-    Html    = erlref_wrap(Mod, render(fun tr_erlref/1, Xml), "../"),
+    {Acc, NXml} = render(fun tr_erlref/2, Xml, []),
+    Html    = erlref_wrap(Mod, NXml, "../"),
     HtmlStr = xml_to_str(Html, "<!DOCTYPE html>"),
     ok = file:write_file(File, HtmlStr).
 
-render(Fun, List) when is_list(List) ->
+render(Fun, List, Acc) when is_list(List) ->
     case io_lib:char_list(List) of 
-        true  -> List;
-        false -> [ render(Fun, X) || X <- List ]
+        true  -> {Acc, List};
+        false -> 
+	    F = fun({Ac, List}, X) ->
+			{NAcc, NEl} = render(Fun, X, Ac),
+			{NAcc, [NEl | List]}
+		end,
+
+	    lists:foldl(F, Acc, List) 
     end;
 
-render(Fun, Element) ->
+render(Fun, Element, Acc) ->
+
+    % this is nasty
+    F = fun(ignore, NAcc) -> 
+		{NAcc, ""};
+	   ({NEl, NAttr, NChild}, NAcc) ->
+		{NNAcc, NNChild} = render(Fun, NChild, NAcc),
+		{NNAcc, {NEl, NAttr, NNChild}};
+	   (Else, NAcc) ->
+		{NAcc, Else}
+	end,
+    
     case Fun(Element) of
-        ignore               -> "";
-        {stop, Result}       -> Result;
-        {NEl, NAttr, NChild} -> {NEl, NAttr, render(Fun, NChild)};
-        Else                 -> Else
+	{El, NAcc} -> F(El, NAcc);
+	Else       -> F(Else, Acc)
     end.
 
 % List of the type of xml files erldocs can build
@@ -222,49 +238,61 @@ index_tpl() ->
     [{h2, [], ["Welome to erldocs.com"]}].
 
 % Transforms erlang xml format to html
-tr_erlref({header,[],_Child}) ->
+tr_erlref({header,[],_Child}, _Acc) ->
     ignore;
-tr_erlref({section,[],_Child}) ->
+tr_erlref({section,[],_Child}, _Acc) ->
     ignore;
-tr_erlref({marker, _Marker, _Child}) ->
+tr_erlref({marker, _Marker, _Child}, _Acc) ->
     ignore;
-tr_erlref({type, _Marker, _Child}) ->
+tr_erlref({type, _Marker, _Child}, _Acc) ->
     ignore;
-tr_erlref({module,[],Module}) ->
+tr_erlref({module,[],Module}, _Acc) ->
     {h1, [], [lists:flatten(Module)]};
-tr_erlref({modulesummary, [], Child}) ->
+tr_erlref({modulesummary, [], Child}, _Acc) ->
     {h2, [{class, "modsummary"}], Child};
-tr_erlref({c, [], Child}) ->
+tr_erlref({c, [], Child}, _Acc) ->
     {code, [], Child};
-tr_erlref({seealso, _Marker, Child}) ->
+tr_erlref({seealso, _Marker, Child}, _Acc) ->
     {span, [{class, "seealso"}], Child};
-tr_erlref({desc, [], Child}) ->
+tr_erlref({desc, [], Child}, _Acc) ->
     {'div', [{class, "description"}], Child};
-tr_erlref({description, [], Child}) ->
+tr_erlref({description, [], Child}, _Acc) ->
     {'div', [{class, "description"}], Child};
-tr_erlref({funcs, [], Child}) ->
+tr_erlref({funcs, [], Child}, _Acc) ->
     {'div', [{class,"functions"}], [{h2, [], ["Functions"]}, {hr, [], []} | Child]};
-tr_erlref({func, [], Child}) ->
+tr_erlref({func, [], Child}, _Acc) ->
     {'div', [{class,"function"}], Child};
-tr_erlref({tag, [], Child}) ->
+tr_erlref({tag, [], Child}, _Acc) ->
     {'div', [{class,"tag"}], Child};
-tr_erlref({taglist, [], Child}) ->
+tr_erlref({taglist, [], Child}, _Acc) ->
     {ul, [], Child};
-tr_erlref({input, [], Child}) ->
+tr_erlref({input, [], Child}, _Acc) ->
     {code, [], Child};
-tr_erlref({item, [], Child}) ->
+tr_erlref({item, [], Child}, _Acc) ->
     {li, [], Child};
-tr_erlref({list, _Type, Child}) ->
+tr_erlref({list, _Type, Child}, _Acc) ->
     {ul, [], Child};
-tr_erlref({name, [], Child}) ->
+tr_erlref({name, [], Child}, Acc) ->
     case make_name(Child) of
         ignore -> ignore;
-        Name   -> {h3, [{id, Name}], [Child]}
+        Name   -> 
+	    NName = inc_name(Name, Acc, 0),
+	    { {h3, [{id, NName}], [Child]},     
+              [NName | Acc]}
     end;
-tr_erlref({fsummary, [], _Child}) ->
+tr_erlref({fsummary, [], _Child}, _Acc) ->
     ignore;
-tr_erlref(Else) ->
+tr_erlref(Else, _Acc) ->
     Else.
+
+nname(Name, 0)   -> Name;
+nname(Name, Acc) -> Name ++ "-" ++ integer_to_list(Acc).
+
+inc_name(Name, List, Acc) ->
+    case lists:member(nname(Name, Acc), List) of
+	true   -> inc_name(Name, List, Acc+1);
+	false  -> nname(Name, Acc)
+    end.
 
 attr_to_str([]) ->
     "";
