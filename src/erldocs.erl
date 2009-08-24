@@ -297,7 +297,15 @@ erlref_wrap(Module, Xml, Base) ->
          {'div', [{id, "content"}], Xml},
          {script, [{src, "http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.js"}], [" "]},
          {script, [{src, Base++"erldocs_index.js"}], [" "]},
-         {script, [{src, Base++"../erldocs.js"}], [" "]}
+         {script, [{src, Base++"../erldocs.js"}], [" "]},
+         {script, [{type, "text/javascript"}],
+          ["var gaJsHost = ((\"https:\" == document.location.protocol) "
+           "? \"https://ssl.\" : \"http://www.\"); document.write("
+           "unescape(\"%3Cscript src='\" + gaJsHost + \"google-analytics"
+           ".com/ga.js' type='text/javascript'%3E%3C/script%3E\"));"]},
+         {script, [{type, "text/javascript"}],
+          ["try { var pageTracker = _gat._getTracker(\"UA-59760-14\");"
+           "pageTracker._trackPageview();} catch(err) {}"]}        
         ]}
       ]}].
 
