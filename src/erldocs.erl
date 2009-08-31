@@ -135,7 +135,7 @@ render(erlref, Root, Otp, App, Mod, Xml) ->
     File = filename:join([Root, "www", Otp, App, Mod++".html"]),
     ok   = filelib:ensure_dir(filename:dirname(File)++"/"),
 
-    {_Acc, NXml} = render(fun tr_erlref/2, Xml, []),
+    {_Acc, NXml} = render(fun tr_erlref/2, Xml, [{ids,[]}, {list, ul}]),
     Html    = erlref_wrap(Mod, NXml, "../"),
     HtmlStr = xml_to_str(Html, "<!DOCTYPE html>"),
     ok = file:write_file(File, HtmlStr).
@@ -235,7 +235,7 @@ find_docs(Otp) ->
                 filelib:is_dir(Src) ],
 
     Erts = filelib:wildcard(OtpSrc ++ "/erts/doc/src/*.xml"),
-    
+
     lists:foldl(fun lists:append/2, [], Docs) ++ Erts.
 
 info(Base) ->
@@ -314,50 +314,79 @@ index_tpl(Vsn, Base) ->
      {hr, [], []}, 
      {'div', [{class, "info"}], info(Base)}].
 
+add_html("#"++Rest) ->
+    "#"++Rest;
+add_html(Link) ->
+    case string:tokens(Link, "#") of
+	[Tmp] -> Tmp++".html";
+	[N1, N2] -> lists:flatten([N1, ".html#", N2])
+    end.     
+
 % Transforms erlang xml format to html
 tr_erlref({header,[],_Child}, _Acc) ->
     ignore;
-tr_erlref({section,[],_Child}, _Acc) ->
-    ignore;
-tr_erlref({marker, _Marker, _Child}, _Acc) ->
-    ignore;
-tr_erlref({type, _Marker, _Child}, _Acc) ->
-    ignore;
+tr_erlref({marker, [{id, Marker}], []}, _Acc) ->
+    {span, [{id, Marker}], [" "]};
+tr_erlref({term,[{id, Term}], _Child}, _Acc) ->
+    Term;
 tr_erlref({module,[],Module}, _Acc) ->
     {h1, [], [lists:flatten(Module)]};
 tr_erlref({modulesummary, [], Child}, _Acc) ->
     {h2, [{class, "modsummary"}], Child};
 tr_erlref({c, [], Child}, _Acc) ->
     {code, [], Child};
-tr_erlref({seealso, _Marker, Child}, _Acc) ->
-    {span, [{class, "seealso"}], Child};
+tr_erlref({section, [], Child}, _Acc) ->
+    {'div', [{class, "section"}], Child};
+tr_erlref({title, [], Child}, _Acc) ->
+    {h4, [], [Child]};
+tr_erlref({type, [], Child}, _Acc) ->
+    {ul, [{class, "type"}], Child};
+tr_erlref({v, [], []}, _Acc) ->
+    {li, [], [" "]};
+tr_erlref({v, [], Child}, _Acc) ->
+    {li, [], [{code, [], Child}]};
+tr_erlref({seealso, [{marker, Marker}], Child}, _Acc) ->
+    N = case string:tokens(Marker, ":") of
+	    [Tmp]     -> add_html(Tmp);
+	    [Ap | Md] ->  "../"++Ap++"/" ++ add_html(lists:flatten(Md))
+	end,
+    {a, [{href, N}, {class, "seealso"}], Child};
 tr_erlref({desc, [], Child}, _Acc) ->
     {'div', [{class, "description"}], Child};
 tr_erlref({description, [], Child}, _Acc) ->
     {'div', [{class, "description"}], Child};
 tr_erlref({funcs, [], Child}, _Acc) ->
-    {'div', [{class,"functions"}], [{h2, [], ["Functions"]}, {hr, [], []} | Child]};
+    {'div', [{class,"functions"}], [{h4, [], ["Functions"]}, {hr, [], []} | Child]};
 tr_erlref({func, [], Child}, _Acc) ->
     {'div', [{class,"function"}], Child};
 tr_erlref({tag, [], Child}, _Acc) ->
-    {'div', [{class,"tag"}], Child};
-tr_erlref({taglist, [], Child}, _Acc) ->
-    {ul, [], Child};
+    {dt, [], Child};
+tr_erlref({taglist, [], Child}, [Ids, _List]) ->
+    { {dl, [], Child}, [Ids, {list, dl}] };
 tr_erlref({input, [], Child}, _Acc) ->
     {code, [], Child};
-tr_erlref({item, [], Child}, _Acc) ->
+tr_erlref({item, [], Child}, [_Ids, {list, dl}]) ->
+    {dd, [], Child};
+tr_erlref({item, [], Child}, [_Ids, {list, ul}]) ->
     {li, [], Child};
+tr_erlref({list, _Type, Child}, [Ids, _List]) ->
+    { {ul, [], Child}, [Ids, {list, ul}] };
+tr_erlref({code, [{type, "none"}], Child}, _Acc) ->
+    {pre, [{class, "sh_erlang"}], Child};
 tr_erlref({pre, [], Child}, _Acc) ->
     {pre, [{class, "sh_erlang"}], Child};
-tr_erlref({list, _Type, Child}, _Acc) ->
-    {ul, [], Child};
+tr_erlref({note, [], Child}, _Acc) ->
+    {'div', [{class, "note"}], [{h2, [], ["Note!"]} | Child]};
+tr_erlref({warning, [], Child}, _Acc) ->
+    {'div', [{class, "warning"}], [{h2, [], ["Warning!"]} | Child]};
 tr_erlref({name, [], Child}, Acc) ->
     case make_name(Child) of
         ignore -> ignore;
-        Name   -> 
-	    NName = inc_name(Name, Acc, 0),
+        Name   ->
+	    [{ids, Ids}, List] = Acc,
+	    NName = inc_name(Name, Ids, 0),
 	    { {h3, [{id, NName}], [Child]},     
-              [NName | Acc]}
+              [{ids, [NName | Ids]}, List]}
     end;
 tr_erlref({fsummary, [], _Child}, _Acc) ->
     ignore;

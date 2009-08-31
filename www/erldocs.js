@@ -88,7 +88,7 @@ ErlDocs.prototype.showModules = function()
     if ( item[0] == "mod" ) {
       var url = preurl+item[1]+"/"+item[2].split(":")[0]+".html?i="+i;
       html += '<li class="'+item[0]+'"><a href="'+url+'">'
-        +'<span class="dat">'+item[0]+'</span><span class="name">'+item[2]+"</span>"
+        +'<span class="name">'+item[2]+"</span>"
         +'<br /><span class="sub">'+item[3]+'</span>'
         +'</a></li>';
       count++;
@@ -113,7 +113,7 @@ ErlDocs.prototype.searchApps = function(str)
 
 	var url = preurl+item[1]+"/"+item[2].split(":")[0]+".html?search="+str+"&i="+count + hash;
 	html += '<li class="'+item[0]+'"><a href="'+url+'">'
-	    +'<span class="dat">'+item[0]+'</span><span class="name">'+item[2]+"</span>"
+	    +'<span class="name">'+item[2]+"</span>"
 	    +'<br /><span class="sub">'+item[3]+'</span>'
 	    +'</a></li>';
 
@@ -179,7 +179,7 @@ if(!this.sh_languages){this.sh_languages={}}var sh_requests={};function sh_isEma
 sh_languages['erlang'] = [
   [
     [
-      /\b(?:div|rem|or|xor|bor|bxor|bsl|bsr|and|band|not|bnot|abs|alive|apply|atom_to_list|binary_to_list|binary_to_term|concat_binary|date|disconnect_node|element|erase|exit|float|float_to_list|get|get_keys|group_leader|halt|hd|integer_to_list|is_alive|length|link|list_to_atom|list_to_binary|list_to_float|list_to_integer|list_to_pid|list_to_tuple|load_module|make_ref|monitor_node|node|nodes|now|open_port|pid_to_list|process_flag|process_info|process|put|register|registered|round|self|setelement|size|spawn|spawn_link|split_binary|statistics|term_to_binary|throw|time|tl|trunc|tuple_to_list|unlink|unregister|whereis|atom|binary|constant|function|integer|list|number|pid|ports|port_close|port_info|reference|record|check_process_code|delete_module|get_cookie|hash|math|module_loaded|preloaded|processes|purge_module|set_cookie|set_node|acos|asin|atan|atan2|cos|cosh|exp|log|log10|pi|pow|power|sin|sinh|sqrt|tan|tanh|call|module_info|parse_transform|undefined_function|error_handler|after|begin|case|catch|cond|end|fun|if|let|of|query|receive|when|creation|current_function|dictionary|group_leader|heap_size|high|initial_call|linked|low|memory_in_use|message_queue|net_kernel|node|normal|priority|reductions|registered_name|runnable|running|stack_trace|status|timer|trap_exit|waiting|command|count_in|count_out|creation|in|in_format|linked|node|out|owner|packeting|atom_tables|communicating|creation|current_gc|current_reductions|current_runtime|current_wall_clock|distribution_port|entry_points|error_handler|friends|garbage_collection|magic_cookie|magic_cookies|module_table|monitored_nodes|name|next_ref|ports|preloaded|processes|reductions|ref_state|registry|runtime|wall_clock|apply_lambda|module_info|module_lambdas|record|record_index|record_info|badarg|nocookie|false|fun|true|badsig|kill|killed|exit|normal)\b/g,
+      /\b(?:div|default|rem|or|xor|bor|bxor|bsl|bsr|and|band|not|bnot|abs|alive|apply|atom_to_list|binary_to_list|binary_to_term|concat_binary|date|disconnect_node|element|erase|exit|float|float_to_list|get|get_keys|group_leader|halt|hd|integer_to_list|is_alive|length|link|list_to_atom|list_to_binary|list_to_float|list_to_integer|list_to_pid|list_to_tuple|load_module|make_ref|monitor_node|node|nodes|now|open_port|pid_to_list|process_flag|process_info|process|put|register|registered|round|self|setelement|size|spawn|spawn_link|split_binary|statistics|term_to_binary|throw|time|tl|trunc|tuple_to_list|unlink|unregister|whereis|atom|binary|constant|function|integer|list|number|pid|ports|port_close|port_info|reference|record|check_process_code|delete_module|get_cookie|hash|math|module_loaded|preloaded|processes|purge_module|set_cookie|set_node|acos|asin|atan|atan2|cos|cosh|exp|log|log10|pi|pow|power|sin|sinh|sqrt|tan|tanh|call|module_info|parse_transform|undefined_function|error_handler|after|begin|case|catch|cond|end|fun|if|let|of|query|receive|when|creation|current_function|dictionary|group_leader|heap_size|high|initial_call|linked|low|memory_in_use|message_queue|net_kernel|node|normal|priority|reductions|registered_name|runnable|running|stack_trace|status|timer|trap_exit|waiting|command|count_in|count_out|creation|in|in_format|linked|node|out|owner|packeting|atom_tables|communicating|creation|current_gc|current_reductions|current_runtime|current_wall_clock|distribution_port|entry_points|error_handler|friends|garbage_collection|magic_cookie|magic_cookies|module_table|monitored_nodes|name|next_ref|ports|preloaded|processes|reductions|ref_state|registry|runtime|wall_clock|apply_lambda|module_info|module_lambdas|record|record_index|record_info|badarg|nocookie|false|fun|true|badsig|kill|killed|exit|normal)\b/g,
       'sh_keyword',
       -1
     ],

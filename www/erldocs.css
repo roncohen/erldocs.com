@@ -4,13 +4,14 @@
 }
 
 body { 
- font-family: Arial, sans-serif;
+ font-family: verdana, Arial, sans-serif;
  font-size:13px;
  font-size-adjust:none;
  font-style:normal;
  font-variant:normal;
  font-weight:normal;
- line-height:1.5;
+ line-height:1.3;
+ color:#222;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -19,7 +20,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 p {
- margin:5px 0px 10px 0px;
+ margin:7px 0px 12px 0px;
  color:#222;
 }
 
@@ -40,6 +41,28 @@ hr {
  color:#AAA;
 }
 
+dl {
+ margin:15px 20px;
+}
+
+dt {
+ margin:2px 0px;
+}
+
+dd {
+ margin-bottom:8px;
+}
+
+a {
+ color:#B22222;
+}
+
+a:visited {
+  color:#CD5C5C;
+  border-bottom: 1px dotted #CD5C5C;
+  text-decoration:none;
+}
+
 .copystuff { 
  padding:2px 0px 0px 4px;
  font-size:10px;
@@ -49,17 +72,23 @@ hr {
  text-decoration:none;
 }
 
-#content li { margin: 0px 20px; }
+#content li { margin: 0px 25px; }
 
 #content {  
  margin: 0px 10px 0px 255px;
  padding:10px;
 }
 
+#content h4 {
+ color:#444;
+ margin-top:25px;
+ font-size:14px;
+}
+
 h2.modsummary {
  font-size:11px;
  border-bottom: 1px solid #999;
- margin-bottom:10px;
+ margin-bottom:15px;
 }
 
 .functions {
@@ -67,6 +96,7 @@ h2.modsummary {
 }
 
 .function h3 {   
+ margin-top:5px;
  font-size:15px;
  font-weight:bold;
 }
@@ -75,40 +105,59 @@ h2.modsummary {
  margin: 15px 0px;
 }
 
-.function em, .function p {  
+.function p {  
  padding-left:10px;
+}
+
+.function em {
+ font-style:normal;
+ font-weight:bold;
 }
 
 .function ul {  
  list-style-type:none;
 }
 
-.function em {  
- float:left;
-}
-
 .seealso {  
- font-size:13px;
 }
 
 .seealso li {  
  float:left;
- padding-left:10px;
+ font-style:normal;
+ margin-left:10px;
 }
+
+ul { margin: 10px 0px; }
 
 code { 
  font-family:"Courier New","Andale Mono",monospace;
+background:#EEFFCC none repeat scroll 0 0;
+border-bottom:1px dotted #AADD99;
+}
+
+pre code { 
+ background:none;
+ border:none;
 }
 
 pre {
-border:1px solid #DFECF1;
+margin: 10px 0px;
+padding:5px; 
+border-left:2px solid #ccc;
+background:#EFEFEF;
+margin-left:10px;
 color:#111;
 font-family:"Courier New","Andale Mono",monospace;
 font-size:13px;
 line-height:normal;
 overflow:auto;
-padding:10px;
 }
+
+.note { border: 1px solid #E1E4EA; padding:10px; margin:10px 8%; background:#EFF3F8;}
+.note h2 { font-size:14px; font-weight: bold; display:inline; }
+
+.warning { border: 1px solid #E8DFDF; padding:10px; margin:10px 8%; background:#FBF4E9;}
+.warning h2 { font-size:14px; font-weight: bold;  display:inline; }
 
 #sidebar {  
  overflow-y: hidden;
@@ -130,7 +179,7 @@ padding:10px;
  outline:none;
  font-family: 13px Arial, sans-serif;
  padding:2px;
- text-indent:5px;
+ text-indent:2px;
  margin:3px;
  border:1px solid;
 border-color:    #CCC #999 #999 #CCC;
@@ -180,33 +229,34 @@ border-color:    #CCC #999 #999 #CCC;
 
 #results li a {  
  display: block;
- padding:3px;
+ padding:3px 0px 3px 5px;
  position:relative;
  text-decoration:none;
- color:#111;
- border-bottom:1px solid #DDD;
+ color:#555;
+ border-bottom:1px dashed #AAA;
  overflow:hidden;
 }
 
 #results .name {
- padding-left:33px;
+ color:#000;
+ padding-left:0px;
 }
 
 #results li:hover {  
- background:#DDD;
+ background:#DDD !important;
 }
 
 #results li.selected {
- background:#990033;
- color:white;
+ background: #333 !important;
 }
-#results li.selected a, #results li.selected span {
- color:white;
+
+#results li.selected .sub, #results li.selected span {
+ color:#FFF !important;
 }
 
 #results .sub {  
- color:#333333;
- font-size:11px;
+ color:#555;
+ font-size:10px;
  white-space:nowrap;
 }
 
@@ -214,10 +264,9 @@ border-color:    #CCC #999 #999 #CCC;
  -moz-border-radius:    3px;
  -webkit-border-radius: 3px;
  font-size:11px;
+ color:#777;
  line-height:11px;
  padding:2px;
- font-weight:bold;
- color:white;
  position:absolute;
  display:block;
  width:25px;
@@ -225,12 +274,12 @@ border-color:    #CCC #999 #999 #CCC;
  text-align:center;
 }
 
-#results li.fun .dat {  
- background:blue;
+#results li.fun {  
+ background:#E6FFCC;
 }
 
-#results li.mod .dat {  
- background:green;
+#results li.mod {  
+ background:#CCE6FF;
 }
 
 #results li.app .dat {  
@@ -254,7 +303,6 @@ border-color:    #CCC #999 #999 #CCC;
 }
 
 pre.sh_sourceCode {
-  background-color: white;
   color: black;
   font-style: normal;
   font-weight: normal;
@@ -270,7 +318,7 @@ pre.sh_sourceCode .sh_comment { color: brown; font-style: italic; }         /* c
 pre.sh_sourceCode .sh_number { color: purple; }                             /* literal numbers */
 pre.sh_sourceCode .sh_preproc { color: darkblue; font-weight: bold; }       /* e.g., #include, import */
 pre.sh_sourceCode .sh_symbol { color: darkred; }                            /* e.g., <, >, + */
-pre.sh_sourceCode .sh_function { color: black; font-weight: bold; }         /* function calls and declarations */
+pre.sh_sourceCode .sh_function { color: #32656A; font-weight: bold; }         /* function calls and declarations */
 pre.sh_sourceCode .sh_cbracket { color: red; }                              /* block brackets (e.g., {, }) */
 pre.sh_sourceCode .sh_todo { font-weight: bold; background-color: cyan; }   /* TODO and FIXME */
 
@@ -319,3 +367,6 @@ pre.sh_sourceCode .sh_value { color: darkgreen; font-style: italic; }
 pre.sh_sourceCode .sh_section { color: black; font-weight: bold; }
 pre.sh_sourceCode .sh_paren { color: red; }
 pre.sh_sourceCode .sh_attribute { color: darkgreen; }
+
+
+.sh_sourceCode{ font-weight:normal; font-style:normal}.sh_sourceCode .sh_symbol,.sh_sourceCode .sh_cbracket{ color:#32656a}.sh_sourceCode .sh_keyword{ font-style:italic}.sh_sourceCode .sh_function{ font-weight:bold}.sh_sourceCode .sh_preproc{ font-weight:bold; color:#32656a}.sh_sourceCode .sh_string,.sh_sourceCode .sh_regexp,.sh_sourceCode .sh_specialchar{  color:#94E343}.sh_sourceCode .sh_number{  color:#a67}.sh_sourceCode .sh_comment{ color:#999}
