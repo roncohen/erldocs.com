@@ -582,10 +582,10 @@ This option is mandatory for remote targets
     all: $(PROGS)
     
     nfs_check@exe@: nfs_check@obj@
-\011   $(LD) $(CROSSLDFLAGS) -o nfs_check nfs_check@obj@ @LIBS@
-
+       $(LD) $(CROSSLDFLAGS) -o nfs_check nfs_check@obj@ @LIBS@
+ 
     nfs_check@obj@: nfs_check.c
-\011   $(CC) -c -o nfs_check@obj@ $(CFLAGS) nfs_check.c
+       $(CC) -c -o nfs_check@obj@ $(CFLAGS) nfs_check.c
     </code>
   </section>
 </erlref>

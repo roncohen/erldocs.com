@@ -100,14 +100,14 @@ iolist() = [char() | binary() | iolist()]
 	the previous checksum, <c>OldAdler</c>, with the checksum of 
 	<c>Data</c>.</p>
 	<p>The following code:</p>
-	<code>
-	X = adler32(Data1),
-	Y = adler32(X,Data2).
-	</code>
+	<pre>
+X = adler32(Data1),
+Y = adler32(X,Data2).
+	</pre>
 	<p>- would assign the same value to <c>Y</c> as this would:</p>
-	<code>
-	Y = adler32([Data1,Data2]).
-	</code>
+	<pre>
+Y = adler32([Data1,Data2]).
+	</pre>
       </desc>
     </func>
     <func>
@@ -122,16 +122,16 @@ iolist() = [char() | binary() | iolist()]
 	This computation requires the size of the data object for 
 	the second checksum to be known.</p>
 	<p>The following code:</p>
-	<code>
-	Y = adler32(Data1),
-	Z = adler32(Y,Data2).
-	</code>
+	<pre>
+Y = adler32(Data1),
+Z = adler32(Y,Data2).
+	</pre>
 	<p>- would assign the same value to <c>Z</c> as this would:</p>
-	<code>
-	X = adler32(Data1),
-	Y = adler32(Data2),
-	Z = adler32_combine(X,Y,iolist_size(Data2)).
-	</code>
+	<pre>
+X = adler32(Data1),
+Y = adler32(Data2),
+Z = adler32_combine(X,Y,iolist_size(Data2)).
+	</pre>
       </desc>
     </func>
     <func>

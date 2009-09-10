@@ -52,7 +52,7 @@
       allocation map. A memory allocation map contains a list of descriptors
       for each allocated memory block. Currently, a descriptor is a 4-tuple</p>
     <pre>
-\011{TypeNo, Address, Size, PidDesc}    </pre>
+{TypeNo, Address, Size, PidDesc}    </pre>
     <p>where <c>TypeNo</c> is the memory block type number, <c>Address</c>
       is its place in memory, and <c>Size</c> is its size, in bytes.
       <c>PidDesc</c> is either a tuple <c>{X,Y,Z}</c> identifying the

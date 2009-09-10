@@ -74,8 +74,8 @@
     <p>Here is an example of how to reconstruct source code from
       the debug information in a BEAM file <c>Beam</c>:</p>
     <code type="none">
-      {ok,{_,[{abstract_code,{_,AC}}]}} = beam_lib:chunks(Beam,[abstract_code]).
-      io:fwrite("~s~n", [erl_prettypr:format(erl_syntax:form_list(AC))]).</code>
+{ok,{_,[{abstract_code,{_,AC}}]}} = beam_lib:chunks(Beam,[abstract_code]).
+io:fwrite("~s~n", [erl_prettypr:format(erl_syntax:form_list(AC))]).</code>
     <p><em>Encrypted debug information</em></p>
     <p>The debug information can be encrypted in order to keep
       the source code secret, but still being able to use tools such as
@@ -124,7 +124,7 @@
     <p>The <c>.erlang.crypt</c> file should contain a single list of
       tuples:</p>
     <code type="none">
-      {debug_info, Mode, Module, Key}</code>
+{debug_info, Mode, Module, Key}</code>
     <p><c>Mode</c> is the type of crypto algorithm; currently, the only
       allowed value thus is <c>des3_cbc</c>. <c>Module</c> is either an
       atom, in which case <c>Key</c> will only be used for the module
@@ -463,7 +463,7 @@ chunkref() = chunkname() | chunkid()</code>
           register a fun, <c>{error, exists}</c> is returned.</p>
         <p>The fun must handle the following arguments:</p>
         <code type="none">
-\011  CryptoKeyFun(init) -> ok | {ok, NewCryptoKeyFun} | {error, Term}</code>
+CryptoKeyFun(init) -> ok | {ok, NewCryptoKeyFun} | {error, Term}</code>
         <p>Called when the fun is registered, in the process that holds
           the fun. Here the crypto key fun can do any necessary
           initializations. If <c>{ok, NewCryptoKeyFun}</c> is returned
@@ -472,14 +472,14 @@ chunkref() = chunkname() | chunkid()</code>
           the registration is aborted and <c>crypto_key_fun/1</c>
           returns <c>{error, Term}</c> as well.</p>
         <code type="none">
-\011  CryptoKeyFun({debug_info, Mode, Module, Filename}) -> Key</code>
+CryptoKeyFun({debug_info, Mode, Module, Filename}) -> Key</code>
         <p>Called when the key is needed for the module <c>Module</c>
           in the file named <c>Filename</c>. <c>Mode</c> is the type of
           crypto algorithm; currently, the only possible value thus is
           <c>des3_cbc</c>. The call should fail (raise an exception) if
           there is no key available.</p>
         <code type="none">
-\011  CryptoKeyFun(clear) -> term()</code>
+CryptoKeyFun(clear) -> term()</code>
         <p>Called before the fun is unregistered. Here any cleaning up
           can be done. The return value is not important, but is passed
           back to the caller of <c>clear_crypto_key_fun/0</c> as part

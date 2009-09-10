@@ -47,7 +47,7 @@ client() ->
     <code type="none">
 server() ->
     {ok, LSock} = gen_tcp:listen(5678, [binary, {packet, 0}, 
-\011\011\011\011\011{active, false}]),
+                                        {active, false}]),
     {ok, Sock} = gen_tcp:accept(LSock),
     {ok, Bin} = do_recv(Sock, []),
     ok = gen_tcp:close(Sock),
@@ -55,10 +55,10 @@ server() ->
 
 do_recv(Sock, Bs) ->
     case gen_tcp:recv(Sock, 0) of
-\011{ok, B} ->
-\011    do_recv(Sock, [Bs, B]);
-\011{error, closed} ->
-\011    {ok, list_to_binary(Bs)}
+    {ok, B} ->
+        do_recv(Sock, [Bs, B]);
+    {error, closed} ->
+        {ok, list_to_binary(Bs)}
     end.</code>
     <p>For more examples, see the <seealso marker="#examples">examples</seealso> section.</p>
   </description>
@@ -133,7 +133,7 @@ socket()
           </item>
         </taglist>
         <p>Packets can be sent to the returned socket <c>Socket</c>
-          using\011<c>send/2</c>. Packets sent from the peer are delivered
+          using <c>send/2</c>. Packets sent from the peer are delivered
           as messages:</p>
         <code type="none">
 {tcp, Socket, Data}</code>
@@ -363,12 +363,12 @@ socket()
     <code type="none">
 start(Num,LPort) ->
     case gen_tcp:listen(LPort,[{active, false},{packet,2}]) of
-\011{ok, ListenSock} ->
-\011    start_servers(Num,ListenSock),
-\011    {ok, Port} = inet:port(ListenSock),
-\011    Port;
-\011{error,Reason} ->
-\011    {error,Reason}
+    {ok, ListenSock} ->
+        start_servers(Num,ListenSock),
+        {ok, Port} = inet:port(ListenSock),
+        Port;
+    {error,Reason} ->
+        {error,Reason}
     end.
 
 start_servers(0,_) ->
@@ -376,33 +376,33 @@ start_servers(0,_) ->
 start_servers(Num,LS) ->
     spawn(?MODULE,server,[LS]),
     start_servers(Num-1,LS).
-\011\011       
+
 server(LS) ->
     case gen_tcp:accept(LS) of
-\011{ok,S} ->
-\011    loop(S),
-\011    server(LS);
-\011Other ->
-\011    io:format("accept returned ~w - goodbye!~n",[Other]),
-\011    ok
+    {ok,S} ->
+        loop(S),
+        server(LS);
+    Other ->
+        io:format("accept returned ~w - goodbye!~n",[Other]),
+        ok
     end.
 
 loop(S) ->
     inet:setopts(S,[{active,once}]),
     receive
-\011{tcp,S,Data} ->
-\011    Answer = process(Data), % Not implemented in this example
-\011    gen_tcp:send(S,Answer),
-\011    loop(S);
-\011{tcp_closed,S} ->
-\011    io:format("Socket ~w closed [~w]~n",[S,self()]),
-\011    ok
+    {tcp,S,Data} ->
+        Answer = process(Data), % Not implemented in this example
+        gen_tcp:send(S,Answer),
+        loop(S);
+    {tcp_closed,S} ->
+        io:format("Socket ~w closed [~w]~n",[S,self()]),
+        ok
     end.</code>
     <p>A simple client could look like this:</p>
     <code type="none">
 client(PortNo,Message) ->
     {ok,Sock} = gen_tcp:connect("localhost",PortNo,[{active,false},
-\011\011\011\011\011\011    {packet,2}]),
+                                                    {packet,2}]),
     gen_tcp:send(Sock,Message),
     A = gen_tcp:recv(Sock,0),
     gen_tcp:close(Sock),
@@ -424,36 +424,35 @@ client(PortNo,Message) ->
     <code type="none">
     ...
     {ok,Sock} = gen_tcp:connect(HostAddress, Port,
-\011\011\011\011[{active,false},
-\011\011\011\011 {send_timeout, 5000},
-\011\011\011\011 {packet,2}]),
-\011\011    loop(Sock), % See below
+                [{active,false},
+                 {send_timeout, 5000},
+                 {packet,2}]),
+    loop(Sock), % See below
     ...    </code>
     <p>In the loop where requests are handled, we can now detect send
       timeouts:</p>
     <code type="none">
 loop(Sock) ->
     receive
-\011{Client, send_data, Binary} ->
-\011    case gen_tcp:send(Sock,[Binary]) of
-\011\011{error, timeout} ->
-\011\011    io:format("Send timeout, closing!~n",
-\011\011\011      []),
-\011\011    handle_send_timeout(), % Not implemented here
-\011\011    Client ! {self(),{error_sending, timeout}},
-\011\011    %% Usually, it's a good idea to give up in case of a 
-\011\011    %% send timeout, as you never know how much actually 
-\011\011    %% reached the server, maybe only a packet header?!
-\011\011    gen_tcp:close(Sock);
-\011\011{error, OtherSendError} ->
-\011\011    io:format("Some other error on socket (~p), closing",
-\011\011\011      [OtherSendError]),
-\011\011    Client ! {self(),{error_sending, OtherSendError}},
-\011\011    gen_tcp:close(Sock);
-\011\011ok ->
-\011\011    Client ! {self(), data_sent},
-\011\011    loop(Sock)
-\011    end
+        {Client, send_data, Binary} ->
+            case gen_tcp:send(Sock,[Binary]) of
+                {error, timeout} ->
+                    io:format("Send timeout, closing!~n", []),
+                    handle_send_timeout(), % Not implemented here
+                    Client ! {self(),{error_sending, timeout}},
+                    %% Usually, it's a good idea to give up in case of a 
+                    %% send timeout, as you never know how much actually 
+                    %% reached the server, maybe only a packet header?!
+                    gen_tcp:close(Sock);
+                {error, OtherSendError} ->
+                    io:format("Some other error on socket (~p), closing",
+                      [OtherSendError]),
+                    Client ! {self(),{error_sending, OtherSendError}},
+                    gen_tcp:close(Sock);
+                ok ->
+                    Client ! {self(), data_sent},
+                    loop(Sock)
+            end
     end.    </code>
     <p>Usually it would suffice to detect timeouts on receive, as most
       protocols include some sort of acknowledgment from the server,
