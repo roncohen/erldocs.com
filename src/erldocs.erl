@@ -59,7 +59,10 @@ javascript_index(Otp) ->
     Sort = fun(["app" | _Rest1], ["mod" | _Rest2]) -> true;
               (["app" | _Rest1], ["fun" | _Rest2]) -> true;
               (["mod" | _Rest1], ["fun" | _Rest2]) -> true;
-              (_, _) -> false
+              (["mod", _, M1, _], ["mod", _, M2, _]) ->
+                   string:to_lower(M1) < string:to_lower(M2);
+              (_, _) ->
+                   false
            end,
 
     Index = index(Otp, find_docs(Otp), [], short),
