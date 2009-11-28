@@ -107,7 +107,7 @@ ErlDocs = function() {
 	                +'<br /><span class="sub">'+item[3]+'</span>'
 	                +'</a></li>';
 
-                if( count++ > 30 ) {
+                if( count++ > 100 ) {
                     break;
                 }
             }
