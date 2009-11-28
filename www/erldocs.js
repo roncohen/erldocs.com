@@ -1,156 +1,146 @@
 ErlDocs = function() {
 
-  var that = this;
+    var search   = $("#search"),
+    results      = $("#results"),
+    selected     = null,
+    resultsCount = 0;
 
-  this.search   = $("#search");
-  this.results  = $("#results");
-  this.selected = null;
-  this.resultsCount = 0;
+    search.focus( function() {
+        if(search.val() == "Loading...") {
+            search.val("");
+        }
+    });
 
-  $("#expand").click( function() {
-    $("#sideinfo").toggle("fast");
-  });
+    search.keydown( function(e) {
+        setTimeout( function() {
+            keypress(e);
+        },0);
+    });
 
-  that.search.focus( function() {
-    if(that.search.val() == "Loading...") {
-      that.search.val("");
-    }
-  });
+    $(window).bind('resize', function(e) {
+        window_resize();
+    });
+    window_resize();
 
-  that.search.keydown( function(e) {
-    setTimeout( function() {
-      that.keypress(e);
-    },0);
-  });
+    var qs = ErlDocs.parse_query(document.location.href);
 
-  $(window).bind('resize', function(e) {
-    that.window_resize();
-  });
-  this.window_resize();
-
-  var qs = ErlDocs.parse_query(document.location.href);
-
-  if( qs && qs.search ) {
-      var search_val = decodeURIComponent(qs.search.replace(/\+/g,  " "));
-      this.search.val(search_val);
-      this.filter(search_val);
-  } else {
-      this.showModules();
-  }
-
-  if( qs && qs.i ) {
-      this.setSelected(parseInt(qs.i, 10));
-  }
-
-  this.search.focus();
-};
-
-ErlDocs.prototype.setSelected = function(x, down)
-{
-    down = (typeof down == "undefined") ? false : down;
-
-    if( x >= 0 && x < this.resultsCount ) {
-	if( this.selected != null ) {
-	    this.results.children("li").eq(this.selected).removeClass("selected");
-	}
-	this.selected = x;
-	var selection = this.results.children("li").eq(x).addClass("selected");
-	selection[0].scrollIntoView(down);
-    }
-};
-
-ErlDocs.prototype.keypress = function(e)
-{
-    if( e.keyCode == 40 ) {        //DOWN
-	this.setSelected(this.selected + 1, false);
-    } else if( e.keyCode == 38 ) {    //UP
-	this.setSelected(this.selected - 1, false);
-    } else if ( e.keyCode == 13 ) { //ENTER
-      document.location.href =
-          this.results.children(".selected").find("a").attr("href");
+    if( qs && qs.search ) {
+        var search_val = decodeURIComponent(qs.search.replace(/\+/g,  " "));
+        search.val(search_val);
+        filter(search_val);
     } else {
-	this.filter(this.search.val());
+        showModules();
     }
-};
-
-ErlDocs.prototype.window_resize = function()
-{
-    this.results.height($(window).height() - 26);
-};
-
-ErlDocs.prototype.showModules = function()
-{
-  var html = "";
-  var preurl = !ErlDocs.is_home() ? "../" : "";
-
-  for( var i=0, count=0; i < ErlDocs.index.length; i++ ) {
-    var item = ErlDocs.index[i];
-    if ( item[0] == "mod" ) {
-      var url = preurl+item[1]+"/"+item[2].split(":")[0]+".html?i="+i;
-      html += '<li class="'+item[0]+'"><a href="'+url+'">'
-        +'<span class="name">'+item[2]+"</span>"
-        +'<br /><span class="sub">'+item[3]+'</span>'
-        +'</a></li>';
-      count++;
+    
+    if( qs && qs.i ) {
+        setSelected(parseInt(qs.i, 10));
     }
-  }
-  this.results[0].innerHTML = html;
-  this.resultsCount = count;
-  this.setSelected(0);
-};
+    
+    search.focus();
+    
+    function setSelected(x, down) {
+        down = (typeof down == "undefined") ? false : down;
+        
+        if( x >= 0 && x < resultsCount ) {
+	        if( selected != null ) {
+	            results.children("li").eq(selected).removeClass("selected");
+	        }
+	        selected = x;
+	        var selection = results.children("li").eq(x).addClass("selected");
+	        selection[0].scrollIntoView(down);
+        }
+    };
+    
+    function keypress(e) {
+        if( e.keyCode == 40 ) {        //DOWN
+	        setSelected(selected + 1, false);
+        } else if( e.keyCode == 38 ) {    //UP
+	        setSelected(selected - 1, false);
+        } else if ( e.keyCode == 13 ) { //ENTER
+            document.location.href =
+                results.children(".selected").find("a").attr("href");
+        } else {
+	        filter(search.val());
+        }
+    };
 
-ErlDocs.prototype.searchApps = function(str)
-{
-  var html = "";
-  var preurl = !ErlDocs.is_home() ? "../" : "";
-  var terms = str.split(" ");
+    function window_resize() {
+        results.height($(window).height() - 26);
+    };
 
-  for( var i=0, count=0; i < ErlDocs.index.length; i++ ) {
-    var item = ErlDocs.index[i];
-    if ( ErlDocs.match(item[2], terms) ) {
+    function showModules() {
+        var html = "";
+        var preurl = !ErlDocs.is_home() ? "../" : "";
+        
+        for( var i=0, count=0; i < ErlDocs.index.length; i++ ) {
+            var item = ErlDocs.index[i];
+            if ( item[0] == "mod" ) {
+                var url = preurl+item[1]+"/"+item[2].split(":")[0]+".html?i="+i;
+                html += '<li class="'+item[0]+'"><a href="'+url+'">'
+                    +'<span class="name">'+item[2]+"</span>"
+                    +'<br /><span class="sub">'+item[3]+'</span>'
+                    +'</a></li>';
+                count++;
+            }
+        }
+        results[0].innerHTML = html;
+        resultsCount = count;
+        setSelected(0);
+    };
 
-	var hash = (item[0] == "fun") ? "#"+item[2].split(":")[1] : "";
+    function searchApps(str) {
 
-	var url = preurl+item[1]+"/"+item[2].split(":")[0]+".html?search="+str+"&i="+count + hash;
-	html += '<li class="'+item[0]+'"><a href="'+url+'">'
-	    +'<span class="name">'+item[2]+"</span>"
-	    +'<br /><span class="sub">'+item[3]+'</span>'
-	    +'</a></li>';
+        var html = "";
+        var preurl = !ErlDocs.is_home() ? "../" : "";
+        var terms = str.split(" ");
+        
+        for( var i=0, count=0; i < ErlDocs.index.length; i++ ) {
+            var item = ErlDocs.index[i];
+            if ( ErlDocs.match(item[2], terms) ) {
+                
+	            var hash = (item[0] == "fun") ? "#"+item[2].split(":")[1] : "";
+                
+	            var url = preurl+item[1]+"/"+item[2].split(":")[0]
+                    +".html?search="+str+"&i="+count + hash;
+	            html += '<li class="'+item[0]+'"><a href="'+url+'">'
+	                +'<span class="name">'+item[2]+"</span>"
+	                +'<br /><span class="sub">'+item[3]+'</span>'
+	                +'</a></li>';
 
-      if( count++ > 30 ) {
-        break;
-      }
-    }
-  }
-  this.resultsCount = count;
-  return html;
-};
-
-ErlDocs.prototype.filter = function(str)
-{
-  if( str != "" ) {
-    this.results[0].innerHTML = this.searchApps(str);
-    this.setSelected(0);
-  } else {
-      this.showModules();
-  }
+                if( count++ > 30 ) {
+                    break;
+                }
+            }
+        }
+        resultsCount = count;
+        return html;
+    };
+    
+    function filter(str) {
+        if( str != "" ) {
+            results[0].innerHTML = searchApps(str);
+            setSelected(0);
+        } else {
+            showModules();
+        }
+    };    
 };
 
 ErlDocs.match = function(str, terms)
 {
-  for( var i = 0; i < terms.length; i++ ) {
-	if( str.match(new RegExp(terms[i], "i")) == null ) {
-	    return false;
-	}
-  }
-  return true;
+    for( var i = 0; i < terms.length; i++ ) {
+	    if( str.match(new RegExp(terms[i], "i")) == null ) {
+	        return false;
+	    }
+    }
+        return true;
 };
 
 // This is a nasty check
 ErlDocs.is_home = function()
 {
     return document.title == "Home - erldocs.com (Erlang Documentation)"
-       || document.title == "Module Index - erldocs.com (Erlang Documentation)";
+        || document.title == "Module Index - erldocs.com (Erlang Documentation)";
 };
 
 ErlDocs.parse_query = function(url)
