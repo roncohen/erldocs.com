@@ -1,34 +1,57 @@
-
 -module(erldocs).
 
--export([ all/2, make_name/1 ]).
+-export([ all/3, make_name/1 ]).
 
-all(Src, Dest) ->
+
+all(OtpSrc, Dest, StaticSrc) ->
     
-    ok = build(Src, Dest),
-    ok = javascript_index(Src, Dest),
-    ok = module_index(Src, Dest).    
+    Fun = fun(Current, Acc) ->
+                  all(OtpSrc, Dest, Acc, Current)
+          end,
+    
+    Index = lists:foldl(Fun, [], find_docs(OtpSrc)),
 
-% Build the documentation files
-build(Src, Dest) ->
-    [ ok = build(Src, File, Dest) || File <- find_docs(Src) ],
+    ok = module_index(Dest, Index),
+    ok = javascript_index(Dest, Index),
+
+    [ {ok, _Bytes} = file:copy(StaticSrc++"/"++File, Dest++"/"++File) ||
+        File <- ["erldocs.js", "erldocs.css", "jquery.js", "favicon.ico"] ], 
+    
     ok.
 
-build(Src, DocSrc, Dest) ->
+all(OtpSrc, Dest, Acc, File) ->
     
-    {Type, _Attr, Content} = read_xml(Src, DocSrc),
+    {Type, _Attr, Content} = read_xml(OtpSrc, File, [{space, normalize}]),
     
     case lists:member(Type, buildable()) of
-        false -> ok;
+        false -> Acc;
         true  ->
-            [File, "src", "doc", App | _Path]
-                = lists:reverse(filename:split(DocSrc)),
-            Mod = filename:basename(File, ".xml"),
-            render(Type, Dest, App, Mod, Content)
-    end.
 
-module_index(Src, Dest) ->
-    Index = index(Src, find_docs(Src), [], long),
+            [FName, "src", "doc", App | _Path]
+                = lists:reverse(filename:split(File)),
+
+            % Render File
+            Mod = filename:basename(FName, ".xml"),
+            render(Type, Dest, App, Mod, Content),
+
+            % Add Index
+            Xml = strip_whitespace(Content),
+            
+            {module, [], Module}       = lists:keyfind(module, 1, Xml),
+            {modulesummary, [], [Sum]} = lists:keyfind(modulesummary, 1, Xml),
+
+            % strip silly shy characters
+            NMod  = [ X || X <- string:join(Module, ""), X =/= 173],
+            Funs = get_funs(App, Mod, lists:keyfind(funcs, 1, Xml)),
+
+            case lists:member({App, NMod}, ignore()) of
+                true -> Acc;
+                false -> lists:append([ ["mod", App, NMod, Sum, Mod] |  Funs],
+                                      Acc)
+            end
+    end.
+    
+module_index(Dest, Index) ->
     Mods  = lists:filter(fun(["mod"|_]) -> true; (_) -> false end, Index),
     SMods = lists:reverse(lists:sort(Mods)),
     Xml   = [{h1, [], ["Module Index"]},
@@ -42,13 +65,20 @@ module_index(Src, Dest) ->
     
 module_ind([], Acc) ->
     Acc;
-module_ind([["mod", App, Mod, Summary]|Tail], Acc) ->
-    Html = {p, [], [{a, [{href, App++"/"++Mod++".html"}], [Mod]},
+module_ind([["mod", App, Mod, Summary, Src]|Tail], Acc) ->
+    Html = {p, [], [{a, [{href, App++"/"++Src++".html"}], [Mod]},
                     {br, [], []}, Summary]},
     module_ind(Tail, [Html | Acc]).
 
-javascript_index(Src, Dest) ->
-    
+javascript_index(Dest, FIndex) ->
+
+    F = fun(["mod", App, _Mod, Sum, Mod]) ->
+                ["mod", App, Mod, string:substr(Sum, 1, 50)];
+           ([Else, App, NMod, Sum]) ->
+                [Else, App, NMod, string:substr(Sum, 1, 50)]
+        end,
+    Index = [ F(X) || X<-FIndex ],
+     
     Sort = fun(["app" | _Rest1], ["mod" | _Rest2]) -> true;
               (["app" | _Rest1], ["fun" | _Rest2]) -> true;
               (["mod" | _Rest1], ["fun" | _Rest2]) -> true;
@@ -58,52 +88,11 @@ javascript_index(Src, Dest) ->
                    false
            end,
 
-    Index = index(Src, find_docs(Src), [], short),
     % Heh, cheating, will probably break
     Js = format("var index = ~p;",[lists:sort(Sort, Index)]),
     
     File = filename:join([Dest, "erldocs_index.js"]),
     ok   = file:write_file(File, Js).
-
-index(_Otp, [], Acc, _Summary) ->
-    Acc;
-
-index(Otp, [ DocSrc | Rest], Acc, Summary) ->
-    NewAcc = case do_index(Otp, DocSrc, Summary) of
-                 ignore -> Acc;
-                 Else   -> lists:append(Else, Acc)
-             end,
-    index(Otp, Rest, NewAcc, Summary).
-
-do_index(Src, DocSrc, Summary) ->
-    
-    {Type, _Attr, Content}
-        = read_xml(Src, DocSrc, [{space, normalize}]),
-    
-    case lists:member(Type, buildable()) of
-        false -> ignore;
-        true  ->
-            
-            [_File, "src", "doc", App | _Path]
-                = lists:reverse(filename:split(DocSrc)),
-            Xml = strip_whitespace(Content),
-            
-            {module, [], Module}       = lists:keyfind(module, 1, Xml),
-            {modulesummary, [], [Sum]} = lists:keyfind(modulesummary, 1, Xml),
-            
-            % strip silly shy characters
-            Mod  = [ X || X <- string:join(Module, ""), X =/= 173],
-            Funs = get_funs(App, Mod, lists:keyfind(funcs, 1, Xml)),
-            Sum2 = case Summary of
-                       short -> string:substr(Sum, 1, 50);
-                       long  -> Sum
-                   end,
-
-            case lists:member({App, Mod}, ignore()) of
-                true -> ignore;
-                false -> [ ["mod", App, Mod, Sum2] |  Funs]
-            end
-    end.
 
 ignore() ->
     [{"kernel", "init"},
@@ -116,11 +105,8 @@ format(Str, Args) ->
 
 % Read an xml file, need to cd into the xml directory because files
 % are addressed relative to it, and cd back to everything else works
-read_xml(Src, XmlFile) ->
-    read_xml(Src, XmlFile, []).
-
 read_xml(Src, XmlFile, Opts) ->
-
+    
     {ok, Pwd} = file:get_cwd(),
     file:set_cwd(filename:dirname(XmlFile)),
     
@@ -252,7 +238,7 @@ erlref_wrap(Module, Xml, Base) ->
          {meta,  [{charset, "utf-8"}], []},"\n",
          {title, [], [Module ++ " - erldocs.com (Erlang Documentation)"]},"\n",
          {link,  [{type, "text/css"}, {rel, "stylesheet"},
-                  {href, Base++"../erldocs.css"}], []}, "\n"
+                  {href, Base++"erldocs.css"}], []}, "\n"
         ]},
        {body, [],
         [
@@ -263,9 +249,9 @@ erlref_wrap(Module, Xml, Base) ->
            {ul, [{id, "results"}], [" "]}
           ]},
          {'div', [{id, "content"}], Xml},
-         {script, [{src, Base++"../jquery.js"}], [" "]},
+         {script, [{src, Base++"jquery.js"}], [" "]},
          {script, [{src, Base++"erldocs_index.js"}], [" "]},
-         {script, [{src, Base++"../erldocs.js"}], [" "]},
+         {script, [{src, Base++"erldocs.js"}], [" "]},
          {script, [{type, "text/javascript"}],
           ["var gaJsHost = ((\"https:\" == document.location.protocol) "
            "? \"https://ssl.\" : \"http://www.\"); document.write("
