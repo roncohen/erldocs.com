@@ -21,7 +21,7 @@ all(OtpSrc, Dest, StaticSrc) ->
 
 all(OtpSrc, Dest, Acc, File) ->
     
-    {Type, _Attr, Content} = read_xml(OtpSrc, File, [{space, normalize}]),
+    {Type, _Attr, Content} = read_xml(OtpSrc, File, []),
     
     case lists:member(Type, buildable()) of
         false -> Acc;
@@ -42,6 +42,7 @@ all(OtpSrc, Dest, Acc, File) ->
 
             % strip silly shy characters
             NMod  = [ X || X <- string:join(Module, ""), X =/= 173],
+            io:format("~p~n",[Xml]),
             Funs = get_funs(App, Mod, lists:keyfind(funcs, 1, Xml)),
 
             case lists:member({App, NMod}, ignore()) of
@@ -211,7 +212,8 @@ xml_to_str(Xml, Prolog) ->
 %    lists:flatten(xmerl:export_simple(Xml, xmerl_xml, [{prolog, Prolog}])).
 
 strip_whitespace(List) when is_list(List) ->
-    [ strip_whitespace(X) || X <- List, X =/= " "];
+    [ strip_whitespace(X) || X <- List, is_tuple(X), is_number(X),
+                             nomatch == re:run(X, "^[ \n\t]*$")];%"
 strip_whitespace({El,Attr,Children}) ->
     {El, Attr, strip_whitespace(Children)};
 strip_whitespace(Else) ->
