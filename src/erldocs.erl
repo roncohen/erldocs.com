@@ -15,7 +15,7 @@ all(OtpSrc, Dest, StaticSrc) ->
     ok = javascript_index(Dest, Index),
 
     [ {ok, _Bytes} = file:copy(StaticSrc++"/"++File, Dest++"/"++File) ||
-        File <- ["erldocs.js", "erldocs.css", "jquery.js", "favicon.ico"] ], 
+        File <- ["erldocs.js", "erldocs.css", "jquery.js"] ], 
     
     ok.
 
@@ -332,9 +332,9 @@ tr_erlref({name, [], Child}, Acc) ->
     case make_name(Child) of
         ignore -> ignore;
         Name   ->
-	    [{ids, Ids}, List] = Acc,
-	    NName = inc_name(Name, Ids, 0),
-	    { {h3, [{id, NName}], [Child]},     
+            [{ids, Ids}, List] = Acc,
+            NName = inc_name(Name, Ids, 0),
+            { {h3, [{id, NName}], [Child]},     
               [{ids, [NName | Ids]}, List]}
     end;
 tr_erlref({fsummary, [], _Child}, _Acc) ->
