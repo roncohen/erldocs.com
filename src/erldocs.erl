@@ -26,27 +26,38 @@ all(OtpSrc, Dest, Acc, File) ->
     case lists:member(Type, buildable()) of
         false -> Acc;
         true  ->
-
             [FName, "src", "doc", App | _Path]
                 = lists:reverse(filename:split(File)),
 
             % Render File
             Mod = filename:basename(FName, ".xml"),
             render(Type, Dest, App, Mod, Content),
-
+            
             % Add Index
             Xml = strip_whitespace(Content),
+            {Module1, Sum2} = case Type of
+                                erlref ->                    
+                                    {module, [], Module}
+                                          = lists:keyfind(module, 1, Xml),
+                                    {modulesummary, [], Sum}
+                                          = lists:keyfind(modulesummary,1, Xml),
+                                    {Module, Sum};
+                                cref ->
+                                    {lib, [], Module}
+                                          = lists:keyfind(lib, 1, Xml),
+                                    {libsummary, [], Sum}
+                                          = lists:keyfind(libsummary, 1, Xml),
+                                    {Module, Sum}
+                            end,
+            Sum1 = lists:flatten(Sum2),
             
-            {module, [], Module}       = lists:keyfind(module, 1, Xml),
-            {modulesummary, [], [Sum]} = lists:keyfind(modulesummary, 1, Xml),
-
             % strip silly shy characters
-            NMod  = [ X || X <- string:join(Module, ""), X =/= 173],
+            NMod  = [ X || X <- string:join(Module1, ""), X =/= 173],
             Funs = get_funs(App, Mod, lists:keyfind(funcs, 1, Xml)),
 
             case lists:member({App, NMod}, ignore()) of
                 true -> Acc;
-                false -> lists:append([ ["mod", App, NMod, Sum, Mod] |  Funs],
+                false -> lists:append([ ["mod", App, NMod, Sum1, Mod] |  Funs],
                                       Acc)
             end
     end.
@@ -124,11 +135,12 @@ read_xml(Src, XmlFile, Opts) ->
     end.
 
 
+render(cref, Dest, App, Mod, Xml) ->
+    render(erlref, Dest, App, Mod, Xml);
+
 render(erlref, Dest, App, Mod, Xml) ->
-    
     File = filename:join([Dest, App, Mod++".html"]),
     ok   = filelib:ensure_dir(filename:dirname(File)++"/"),
-
     {_Acc, NXml} = render(fun tr_erlref/2, Xml, [{ids,[]}, {list, ul}]),
     Html    = erlref_wrap(Mod, NXml, "../"),
     HtmlStr = xml_to_str(Html, "<!DOCTYPE html>"),
@@ -167,15 +179,15 @@ render(Fun, Element, Acc) ->
 
 % List of the type of xml files erldocs can build
 buildable() ->
-    [ erlref ].
+    [ erlref, cref ].
 
 get_funs(_App, _Mod, false) ->
     [];
 get_funs(App, Mod, {funcs, [], Funs}) ->
     lists:foldl(
-      fun(X, Acc) -> fun_stuff(App, Mod, X) ++ Acc end,
-      [], Funs).
-    
+            fun(X, Acc) -> fun_stuff(App, Mod, X) ++ Acc end,
+            [], Funs).
+
 fun_stuff(App, Mod, {func, [], Child}) ->
     
     {fsummary, [], Xml} = lists:keyfind(fsummary, 1, Child),
@@ -198,11 +210,10 @@ make_name(Name) ->
             io:format("wtf ~p~n",[Name]),
             ignore;
         Pos ->
-            
             {Name2, Rest2} = lists:split(Pos-1, Tmp),
-            Name3 = lists:last(string:tokens(Name2, ":")),
-            Args = string:substr(Rest2, 2, string:chr(Rest2, 41) - 2),
-            NArgs = length(string:tokens(Args, ",")),
+            Name3          = lists:last(string:tokens(Name2, ":")),
+            Args           = string:substr(Rest2, 2, string:chr(Rest2, 41)-2),
+            NArgs          = length(string:tokens(Args, ",")),
             Name3 ++ "/" ++ integer_to_list(NArgs)
     end.
 
@@ -279,6 +290,8 @@ tr_erlref({marker, [{id, Marker}], []}, _Acc) ->
     {span, [{id, Marker}], [" "]};
 tr_erlref({term,[{id, Term}], _Child}, _Acc) ->
     Term;
+tr_erlref({lib,[],Lib}, _Acc) ->
+    {h1, [], [lists:flatten(Lib)]};
 tr_erlref({module,[],Module}, _Acc) ->
     {h1, [], [lists:flatten(Module)]};
 tr_erlref({modulesummary, [], Child}, _Acc) ->
