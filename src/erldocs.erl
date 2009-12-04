@@ -1,27 +1,31 @@
 -module(erldocs).
 
--export([ all/3, make_name/1 ]).
+-export([ all/4 ]).
 
-
-all(OtpSrc, Dest, StaticSrc) ->
+all(OtpSrc, Dest, StaticSrc, Version) ->
     
     Fun = fun(Current, Acc) ->
-                  all(OtpSrc, Dest, Acc, Current)
+                  all(OtpSrc, Dest, Acc, Current, Version, StaticSrc)
           end,
-    
-    Index = lists:foldl(Fun, [], find_docs(OtpSrc)),
 
-    ok = module_index(Dest, Index),
-    ok = javascript_index(Dest, Index),
+    % build index and remove cos* crap
+    Tmp   = lists:foldl(Fun, [], find_docs(OtpSrc)),
+    Index = [X || X = [_,App|_] <- Tmp, nomatch == re:run(App, "^cos") ],
 
-    [ {ok, _Bytes} = file:copy(StaticSrc++"/"++File, Dest++"/"++File) ||
+    % makes index.html
+    ok = module_index(StaticSrc, Dest, Index, Version), 
+    % makes erldocs_index.js
+    ok = javascript_index(Dest, Index),                 
+
+    % copy static files to individual sites
+    [ {ok, _Bytes} = file:copy([StaticSrc, "/", File], [Dest,"/",File]) ||
         File <- ["erldocs.js", "erldocs.css", "jquery.js"] ], 
     
     ok.
 
-all(OtpSrc, Dest, Acc, File) ->
+all(OtpSrc, Dest, Acc, File, Version, Src) ->
     
-    {Type, _Attr, Content} = read_xml(OtpSrc, File, []),
+    {Type, _Attr, Content} = read_xml(OtpSrc, File),
     
     case lists:member(Type, buildable()) of
         false -> Acc;
@@ -31,7 +35,7 @@ all(OtpSrc, Dest, Acc, File) ->
 
             % Render File
             Mod = filename:basename(FName, ".xml"),
-            render(Type, Dest, App, Mod, Content),
+            render(Type, Dest, App, Mod, Content, Version, Src),
             
             % Add Index
             Xml = strip_whitespace(Content),
@@ -62,24 +66,31 @@ all(OtpSrc, Dest, Acc, File) ->
             end
     end.
     
-module_index(Dest, Index) ->
-    Mods  = lists:filter(fun(["mod"|_]) -> true; (_) -> false end, Index),
-    SMods = lists:reverse(lists:sort(Mods)),
-    Xml   = [{h1, [], ["Module Index"]},
-             {hr, [], []}, {br, [], []},
-             {'div', [], module_ind(SMods, [])}],
+module_index(Static, Dest, Index, Version) ->
+
+    Mods = lists:sort( fun sort_index/2,
+                       [ mod(X) || X = ["mod"|_] <- Index] ),
+    Html = "<h1>Module Index</h1><hr /><br /><div>"
+        ++xml_to_str(Mods)++"</div>",
     
-    Html    = erlref_wrap("Module Index", Xml, ""),
-    HtmlStr = xml_to_str(Html, "<!DOCTYPE html>"),
-    File    = filename:join([Dest, "index.html"]),
-    ok      = file:write_file(File, HtmlStr).
+    Args = [{base, ""},
+            {title, "Module Index - "++Version},
+            {content, Html}],
     
-module_ind([], Acc) ->
-    Acc;
-module_ind([["mod", App, Mod, Summary, Src]|Tail], Acc) ->
-    Html = {p, [], [{a, [{href, App++"/"++Src++".html"}], [Mod]},
-                    {br, [], []}, Summary]},
-    module_ind(Tail, [Html | Acc]).
+    ok = file:write_file([Dest, "/index.html"], file_tpl(Static, Args)).
+
+mod(["mod", App, Mod, Sum, Src]) ->
+    Url = App++"/"++Src++".html",
+    {p,[], [{a, [{href, Url}], [Mod]}, {br,[],[]}, Sum]}.
+
+
+sort_index(["app" | _], ["mod" | _])             -> true;
+sort_index(["app" | _], ["fun" | _])             -> true;
+sort_index(["mod" | _], ["fun" | _])             -> true;
+sort_index(["mod", _, M1, _], ["mod", _, M2, _]) ->
+    string:to_lower(M1) < string:to_lower(M2);
+sort_index(_, _)                                 -> false.
+    
 
 javascript_index(Dest, FIndex) ->
 
@@ -88,22 +99,11 @@ javascript_index(Dest, FIndex) ->
            ([Else, App, NMod, Sum]) ->
                 [Else, App, NMod, string:substr(Sum, 1, 50)]
         end,
-    Index = [ F(X) || X<-FIndex ],
-     
-    Sort = fun(["app" | _Rest1], ["mod" | _Rest2]) -> true;
-              (["app" | _Rest1], ["fun" | _Rest2]) -> true;
-              (["mod" | _Rest1], ["fun" | _Rest2]) -> true;
-              (["mod", _, M1, _], ["mod", _, M2, _]) ->
-                   string:to_lower(M1) < string:to_lower(M2);
-              (_, _) ->
-                   false
-           end,
-
-    % Heh, cheating, will probably break
-    Js = format("var index = ~p;",[lists:sort(Sort, Index)]),
     
-    File = filename:join([Dest, "erldocs_index.js"]),
-    ok   = file:write_file(File, Js).
+    Index = lists:sort( fun sort_index/2, [ F(X) || X<-FIndex ] ),
+    Js    = fmt("var index = ~p;", [Index]),
+    
+    ok = file:write_file([Dest,"/erldocs_index.js"], Js).
 
 ignore() ->
     [{"kernel", "init"},
@@ -111,40 +111,22 @@ ignore() ->
      {"kernel", "erlang"},
      {"kernel", "erl_prim_loader"}].
 
-format(Str, Args) ->
-    lists:flatten(io_lib:format(Str, Args)).
 
-% Read an xml file, need to cd into the xml directory because files
-% are addressed relative to it, and cd back to everything else works
-read_xml(Src, XmlFile, Opts) ->
+render(cref, Dest, App, Mod, Xml, Version, Src) ->
+    render(erlref, Dest, App, Mod, Xml, Version, Src);
+
+render(erlref, Dest, App, Mod, Xml, Version, Src) ->
     
-    {ok, Pwd} = file:get_cwd(),
-    file:set_cwd(filename:dirname(XmlFile)),
-    
-    NOpts  = [{fetch_path, [Src++"/lib/docbuilder/dtd/"]},
-              {encoding,   "latin1"}] ++ Opts,
-    try 
-        {ok, Bin}    = file:read_file(XmlFile),
-        {Xml, _Rest} = xmerl_scan:string(binary_to_list(Bin), NOpts),
-        file:set_cwd(Pwd),    
-        xmerl_lib:simplify_element(Xml)
-    catch
-        _:Err ->
-            file:set_cwd(Pwd),
-            exit({error, XmlFile, Err})
-    end.
-
-
-render(cref, Dest, App, Mod, Xml) ->
-    render(erlref, Dest, App, Mod, Xml);
-
-render(erlref, Dest, App, Mod, Xml) ->
     File = filename:join([Dest, App, Mod++".html"]),
     ok   = filelib:ensure_dir(filename:dirname(File)++"/"),
+    
     {_Acc, NXml} = render(fun tr_erlref/2, Xml, [{ids,[]}, {list, ul}]),
-    Html    = erlref_wrap(Mod, NXml, "../"),
-    HtmlStr = xml_to_str(Html, "<!DOCTYPE html>"),
-    ok = file:write_file(File, HtmlStr).
+
+    Args = [{base, "../"},
+            {title, Mod++" - "++Version},
+            {content, xml_to_str(NXml)}],
+    
+    ok = file:write_file(File, file_tpl(Src, Args)).
 
 render(Fun, List, Acc) when is_list(List) ->
     case io_lib:char_list(List) of 
@@ -163,7 +145,7 @@ render(Fun, List, Acc) when is_list(List) ->
 render(Fun, Element, Acc) ->
 
     % this is nasty
-    F = fun(ignore, NAcc) -> 
+    F = fun(ignore, NAcc) ->
                 {NAcc, ""};
            ({NEl, NAttr, NChild}, NAcc) ->
                 {NNAcc, NNChild} = render(Fun, NChild, NAcc),
@@ -191,7 +173,7 @@ get_funs(App, Mod, {funcs, [], Funs}) ->
 fun_stuff(App, Mod, {func, [], Child}) ->
     
     {fsummary, [], Xml} = lists:keyfind(fsummary, 1, Child),
-    Summary = string:substr(xml_to_str(Xml, []), 1, 50),
+    Summary = string:substr(xml_to_str(Xml), 1, 50),
     
     F = fun({name, [], Name}, Acc) ->
                 case make_name(Name) of
@@ -217,21 +199,8 @@ make_name(Name) ->
             Name3 ++ "/" ++ integer_to_list(NArgs)
     end.
 
-xml_to_str(Xml, Prolog) ->
-    Prolog ++ xml_to_html(Xml).
-%    lists:flatten(xmerl:export_simple(Xml, xmerl_xml, [{prolog, Prolog}])).
-
-strip_whitespace(List) when is_list(List) ->
-    [ strip_whitespace(X) || X <- List, is_tuple(X) orelse is_number(X)
-                                 orelse nomatch == re:run(X, "^[ \n\t]*$")];%"
-strip_whitespace({El,Attr,Children}) ->
-    {El, Attr, strip_whitespace(Children)};
-strip_whitespace(Else) ->
-    Else.
-
 find_docs(OtpSrc) ->
     
-    %OtpSrc = root() ++ "/erlsrc/" ++ Otp,
     Docs = [ filelib:wildcard(Src ++ "/doc/src/*.xml")
              || Src <- filelib:wildcard(OtpSrc++"/lib/*/"),
                 filelib:is_dir(Src) ],
@@ -239,41 +208,6 @@ find_docs(OtpSrc) ->
     Erts = filelib:wildcard(OtpSrc ++ "/erts/doc/src/*.xml"),
 
     lists:foldl(fun lists:append/2, [], Docs) ++ Erts.
-
-% eugh: template to wrap pages in
-erlref_wrap(Module, Xml, Base) ->
-    [
-     {html, [{lang, "en"}],
-      ["\n",
-       {head, [],
-        [
-         {meta,  [{charset, "utf-8"}], []},"\n",
-         {title, [], [Module ++ " - erldocs.com (Erlang Documentation)"]},"\n",
-         {link,  [{type, "text/css"}, {rel, "stylesheet"},
-                  {href, Base++"erldocs.css"}], []}, "\n"
-        ]},
-       {body, [],
-        [
-         {'div', [{id, "sidebar"}],
-          [
-           {input, [{type, "text"}, {value,"Loading..."}, {id, "search"},
-                    {autocomplete, "off"}], []},
-           {ul, [{id, "results"}], [" "]}
-          ]},
-         {'div', [{id, "content"}], Xml},
-         {script, [{src, Base++"jquery.js"}], [" "]},
-         {script, [{src, Base++"erldocs_index.js"}], [" "]},
-         {script, [{src, Base++"erldocs.js"}], [" "]},
-         {script, [{type, "text/javascript"}],
-          ["var gaJsHost = ((\"https:\" == document.location.protocol) "
-           "? \"https://ssl.\" : \"http://www.\"); document.write("
-           "unescape(\"%3Cscript src='\" + gaJsHost + \"google-analytics"
-           ".com/ga.js' type='text/javascript'%3E%3C/script%3E\"));"]},
-         {script, [{type, "text/javascript"}],
-          ["try { var pageTracker = _gat._getTracker(\"UA-59760-14\");"
-           "pageTracker._trackPageview();} catch(err) {}"]}        
-        ]}
-      ]}].
 
 add_html("#"++Rest) ->
     "#"++Rest;
@@ -283,7 +217,7 @@ add_html(Link) ->
         [N1, N2] -> lists:flatten([N1, ".html#", N2])
     end.     
 
-% Transforms erlang xml format to html
+%% Transforms erlang xml format to html
 tr_erlref({header,[],_Child}, _Acc) ->
     ignore;
 tr_erlref({marker, [{id, Marker}], []}, _Acc) ->
@@ -319,7 +253,8 @@ tr_erlref({desc, [], Child}, _Acc) ->
 tr_erlref({description, [], Child}, _Acc) ->
     {'div', [{class, "description"}], Child};
 tr_erlref({funcs, [], Child}, _Acc) ->
-    {'div', [{class,"functions"}], [{h4, [], ["Functions"]}, {hr, [], []} | Child]};
+    {'div', [{class,"functions"}], [{h4, [], ["Functions"]},
+                                    {hr, [], []} | Child]};
 tr_erlref({func, [], Child}, _Acc) ->
     {'div', [{class,"function"}], Child};
 tr_erlref({tag, [], Child}, _Acc) ->
@@ -361,46 +296,97 @@ nname(Name, Acc) -> Name ++ "-" ++ integer_to_list(Acc).
 
 inc_name(Name, List, Acc) ->
     case lists:member(nname(Name, Acc), List) of
-	true   -> inc_name(Name, List, Acc+1);
-	false  -> nname(Name, Acc)
+        true   -> inc_name(Name, List, Acc+1);
+        false  -> nname(Name, Acc)
     end.
 
-attr_to_str([]) ->
-    "";
-attr_to_str(List) when is_list(List) ->
-    string:join([ attr_to_str(X) || X <- List ], " ");
-attr_to_str({Name, Val}) ->
-    atom_to_list(Name) ++ "=\""++Val++"\"".
+
+%% Strips xml children that are entirely whitespace (space, tabs, newlines)
+strip_whitespace(List) when is_list(List) ->
+    [ strip_whitespace(X) || X <- List, is_whitespace(X) ]; 
+strip_whitespace({El,Attr,Children}) ->
+    {El, Attr, strip_whitespace(Children)};
+strip_whitespace(Else) ->
+    Else.
+
+is_whitespace(X) when is_tuple(X); is_number(X) ->
+    true;
+is_whitespace(X) ->
+    nomatch == re:run(X, "^[ \n\t]*$"). %"
+
+%% rather basic xml to string converter, takes xml of the form
+%% {tag, [{listof, "attributes"}], ["list of children"]}
+%% into <tag listof="attributes">list of children</tag>
+xml_to_str(Xml) ->
+    xml_to_html(Xml).
 
 xml_to_html({Tag, Attr, []}) ->
-    lists:flatten([$<, atom_to_list(Tag), " ", attr_to_str(Attr), " />"]);
+    fmt("<~s ~s />", [Tag, atos(Attr)]);
 xml_to_html({Tag, [], []}) ->
-    lists:flatten([$<, atom_to_list(Tag), " />"]);
+    fmt("<~s />", [Tag]);
 xml_to_html({Tag, [], Child}) ->
-    Tg = atom_to_list(Tag), 
-    lists:flatten([$<, Tg, $>, xml_to_html(Child),"</", Tg, $>]);
+    fmt("<~s>~s</~s>", [Tag, xml_to_html(Child), Tag]);
 xml_to_html({Tag, Attr, Child}) ->
-    Tg = atom_to_list(Tag), 
-    lists:flatten([$<, Tg, " ", attr_to_str(Attr), $>,
-                   xml_to_html(Child),"</", Tg, $>]);
+    fmt("<~s ~s>~s</~s>", [Tag, atos(Attr), xml_to_html(Child), Tag]);
 xml_to_html(List) when is_list(List) ->
     case io_lib:char_list(List) of
         true  -> htmlchars(List);
         false -> lists:flatten([ xml_to_html(X) || X <- List])
     end.
 
+atos([])                      -> "";
+atos(List) when is_list(List) -> string:join([ atos(X) || X <- List ], " ");
+atos({Name, Val})             -> atom_to_list(Name) ++ "=\""++Val++"\"".
+
+%% convert ascii into html characters
 htmlchars(List) ->
     htmlchars(List, []).
 
 htmlchars([], Acc) ->
     lists:flatten(lists:reverse(Acc));
 
-htmlchars([$<|Rest], Acc) ->
-    htmlchars(Rest, ["&lt;" | Acc]);
-htmlchars([$>|Rest], Acc) ->
-    htmlchars(Rest, ["&gt;" | Acc]);
-htmlchars([160|Rest], Acc) ->
-    htmlchars(Rest, ["&nbsp;" | Acc]);
-htmlchars([Else|Rest], Acc) ->
-    htmlchars(Rest, [Else | Acc]).
+htmlchars([$<   | Rest], Acc) -> htmlchars(Rest, ["&lt;" | Acc]);
+htmlchars([$>   | Rest], Acc) -> htmlchars(Rest, ["&gt;" | Acc]);
+htmlchars([160  | Rest], Acc) -> htmlchars(Rest, ["&nbsp;" | Acc]);
+htmlchars([Else | Rest], Acc) -> htmlchars(Rest, [Else | Acc]).
+
+
+% Read an xml file, need to cd into the xml directory because files
+% are addressed relative to it
+read_xml(OtpSrc, XmlFile) ->
     
+    {ok, Pwd} = file:get_cwd(),
+    file:set_cwd(filename:dirname(XmlFile)),
+    
+    Opts  = [{fetch_path, [OtpSrc++"/lib/docbuilder/dtd/"]},
+             {encoding,   "latin1"}],
+    try 
+        {ok, Bin}    = file:read_file(XmlFile),
+        {Xml, _Rest} = xmerl_scan:string(binary_to_list(Bin), Opts),
+        file:set_cwd(Pwd),    
+        xmerl_lib:simplify_element(Xml)
+    catch
+        _:Err ->
+            file:set_cwd(Pwd),
+            exit({error, XmlFile, Err})
+    end.
+
+
+%% Quick and dirty templating functions (replaces #KEY# in html with
+%% {key, "Some text"}
+file_tpl(Src, Args) ->
+    {ok, Bin} = file:read_file([Src,"/","erldocs.tpl"]),
+    str_tpl(Bin, Args).
+    
+str_tpl(Str, Args) ->
+    F = fun({Key, Value}, Tpl) ->
+                Opts = [{return, list}, global],
+                NKey = "#"++string:to_upper(atom_to_list(Key))++"#",
+                re:replace(Tpl, NKey, Value, Opts)
+        end,
+    lists:foldl(F, Str, Args).
+
+
+%% lazy shorthand
+fmt(Format, Args) ->
+    lists:flatten(io_lib:format(Format, Args)).
