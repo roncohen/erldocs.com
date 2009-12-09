@@ -139,8 +139,7 @@ ErlDocs.match = function(str, terms)
 // This is a nasty check
 ErlDocs.is_home = function()
 {
-    return document.title == "Home - erldocs.com (Erlang Documentation)"
-        || document.title == "Module Index - erldocs.com (Erlang Documentation)";
+    return document.title.match("Module Index") !== null;
 };
 
 ErlDocs.parse_query = function(url)

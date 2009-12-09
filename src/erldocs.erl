@@ -376,17 +376,33 @@ read_xml(OtpSrc, XmlFile) ->
 %% {key, "Some text"}
 file_tpl(Src, Args) ->
     {ok, Bin} = file:read_file([Src,"/","erldocs.tpl"]),
-    str_tpl(Bin, Args).
+    str_tpl(binary_to_list(Bin), Args).
     
 str_tpl(Str, Args) ->
     F = fun({Key, Value}, Tpl) ->
-                Opts = [{return, list}, global],
+                Opts = [global],
                 NKey = "#"++string:to_upper(atom_to_list(Key))++"#",
-                re:replace(Tpl, NKey, Value, Opts)
+						%re:replace(Tpl, NKey, Value, Opts)
+		{ok, NTpl, _Matches} = regexp:gsub(Tpl, NKey, esc_regex(Value)),
+		NTpl
         end,
-    lists:foldl(F, Str, Args).
-
+    lists:foldr(F, Str, Args).
 
 %% lazy shorthand
 fmt(Format, Args) ->
     lists:flatten(io_lib:format(Format, Args)).
+
+%% Escape the replacement part of the regular expression
+%% so no spurios replacements
+esc_regex(List) when is_binary(List) ->    
+    esc_regex(binary_to_list(List));
+esc_regex(List) ->    
+    esc_regex(List, []).
+
+esc_regex([], Acc) ->
+    lists:flatten(lists:reverse(Acc));
+
+esc_regex([$&   | Rest], Acc) -> esc_regex(Rest, ["\\&" | Acc]);
+%esc_regex([$\   | Rest], Acc) -> esc_regex(Rest, ["\\" | Acc]);
+esc_regex([Else | Rest], Acc) -> esc_regex(Rest, [Else | Acc]).
+
