@@ -41,18 +41,18 @@ all(OtpSrc, Dest, Acc, File, Version, Src) ->
             Xml = strip_whitespace(Content),
             {Module1, Sum2} = case Type of
                                 erlref ->                    
-                                    {module, [], Module}
+                                      {module, [], Module}
                                           = lists:keyfind(module, 1, Xml),
-                                    {modulesummary, [], Sum}
+                                      {modulesummary, [], Sum}
                                           = lists:keyfind(modulesummary,1, Xml),
-                                    {Module, Sum};
-                                cref ->
-                                    {lib, [], Module}
+                                      {Module, Sum};
+                                  cref ->
+                                      {lib, [], Module}
                                           = lists:keyfind(lib, 1, Xml),
-                                    {libsummary, [], Sum}
+                                      {libsummary, [], Sum}
                                           = lists:keyfind(libsummary, 1, Xml),
-                                    {Module, Sum}
-                            end,
+                                      {Module, Sum}
+                              end,
             Sum1 = lists:flatten(Sum2),
             
             % strip silly shy characters
@@ -385,7 +385,6 @@ str_tpl(Str, Args) ->
                 re:replace(Tpl, NKey, Value, Opts)
         end,
     lists:foldl(F, Str, Args).
-
 
 %% lazy shorthand
 fmt(Format, Args) ->
