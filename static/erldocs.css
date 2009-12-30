@@ -323,6 +323,33 @@ h2.modsummary {
     margin : 5px 0px 5px 20px;
 }
 
+#funs {
+    list-style-type : none;
+    overflow        : auto;
+    position        : fixed;
+    background      : white;
+    padding-bottom  : 10px;
+    padding-left    : 20px;
+    bottom          : -10px;
+    left            : 241px;
+    border-top      : 1px solid #999;
+    background      : #eee;
+}
+
+#funs li {
+    display  : block;
+    width    : 80px;
+    margin   : 0px 5px;
+    overflow : hidden;
+    float    : left;
+    padding  : 0px;
+}
+
+#funs li a {
+    font-size : 9px;
+}
+
+
 pre.sh_sourceCode {
     color       : black;
     font-style  : normal;
