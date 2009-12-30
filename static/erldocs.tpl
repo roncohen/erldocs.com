@@ -15,8 +15,8 @@
     </div>
 
     <div id="content">
-      #FUNS#
       #CONTENT#
+      #FUNS#
     </div>
 
     <script type="text/javascript" src="#BASE#jquery.js"></script>

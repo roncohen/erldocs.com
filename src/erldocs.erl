@@ -75,7 +75,8 @@ module_index(Static, Dest, Index, Version) ->
     
     Args = [{base, ""},
             {title, "Module Index - "++Version},
-            {content, Html}],
+            {content, Html},
+            {funs, ""}],
     
     ok = file:write_file([Dest, "/index.html"], file_tpl(Static, Args)).
 
