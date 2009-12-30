@@ -125,7 +125,8 @@ render(erlref, Dest, App, Mod, Xml, Version, Src) ->
     {[_Id, _List, {functions, Funs}], NXml}
         = render(fun tr_erlref/2, Xml, Acc),
 
-    XmlFuns = [ {li, [], [{a, [{href, "#"++X}], [X]}]} || X <- Funs ],
+    XmlFuns = [ {li, [], [{a, [{href, "#"++X}], [X]}]}
+                || X <- lists:reverse(Funs) ],
         
     Args = [{base, "../"},
             {title, Mod++" - "++Version},
