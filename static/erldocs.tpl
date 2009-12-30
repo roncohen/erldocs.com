@@ -15,6 +15,7 @@
     </div>
 
     <div id="content">
+      #FUNS#
       #CONTENT#
     </div>
 
@@ -24,7 +25,7 @@
 
     <script type="text/javascript">
       var _gaq = _gaq || [];
-      _gaq.push(['_setAccount', 'UA-XXXXX-X']);
+      _gaq.push(['_setAccount', 'UA-59760-14']);
       _gaq.push(['_trackPageview']);
       
       (function() {

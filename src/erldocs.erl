@@ -120,11 +120,16 @@ render(erlref, Dest, App, Mod, Xml, Version, Src) ->
     File = filename:join([Dest, App, Mod++".html"]),
     ok   = filelib:ensure_dir(filename:dirname(File)++"/"),
     
-    {_Acc, NXml} = render(fun tr_erlref/2, Xml, [{ids,[]}, {list, ul}]),
+    Acc = [{ids,[]}, {list, ul}, {functions, []}],
+    {[_Id, _List, {functions, Funs}], NXml}
+        = render(fun tr_erlref/2, Xml, Acc),
 
+    XmlFuns = [ {li, [], [{a, [{href, "#"++X}], [X]}]} || X <- Funs ],
+        
     Args = [{base, "../"},
             {title, Mod++" - "++Version},
-            {content, xml_to_str(NXml)}],
+            {content, xml_to_str(NXml)},
+            {funs, xml_to_str({ul, [{id, "funs"}], XmlFuns})}],
     
     ok = file:write_file(File, file_tpl(Src, Args)).
 
@@ -259,16 +264,16 @@ tr_erlref({func, [], Child}, _Acc) ->
     {'div', [{class,"function"}], Child};
 tr_erlref({tag, [], Child}, _Acc) ->
     {dt, [], Child};
-tr_erlref({taglist, [], Child}, [Ids, _List]) ->
-    { {dl, [], Child}, [Ids, {list, dl}] };
+tr_erlref({taglist, [], Child}, [Ids, _List, Funs]) ->
+    { {dl, [], Child}, [Ids, {list, dl}, Funs] };
 tr_erlref({input, [], Child}, _Acc) ->
     {code, [], Child};
-tr_erlref({item, [], Child}, [_Ids, {list, dl}]) ->
+tr_erlref({item, [], Child}, [_Ids, {list, dl}, _Funs]) ->
     {dd, [], Child};
-tr_erlref({item, [], Child}, [_Ids, {list, ul}]) ->
+tr_erlref({item, [], Child}, [_Ids, {list, ul}, _Funs]) ->
     {li, [], Child};
-tr_erlref({list, _Type, Child}, [Ids, _List]) ->
-    { {ul, [], Child}, [Ids, {list, ul}] };
+tr_erlref({list, _Type, Child}, [Ids, _List, Funs]) ->
+    { {ul, [], Child}, [Ids, {list, ul}, Funs] };
 tr_erlref({code, [{type, "none"}], Child}, _Acc) ->
     {pre, [{class, "sh_erlang"}], Child};
 tr_erlref({pre, [], Child}, _Acc) ->
@@ -277,14 +282,13 @@ tr_erlref({note, [], Child}, _Acc) ->
     {'div', [{class, "note"}], [{h2, [], ["Note!"]} | Child]};
 tr_erlref({warning, [], Child}, _Acc) ->
     {'div', [{class, "warning"}], [{h2, [], ["Warning!"]} | Child]};
-tr_erlref({name, [], Child}, Acc) ->
+tr_erlref({name, [], Child}, [{ids, Ids}, List, {functions, Funs}]) ->
     case make_name(Child) of
         ignore -> ignore;
         Name   ->
-            [{ids, Ids}, List] = Acc,
             NName = inc_name(Name, Ids, 0),
             { {h3, [{id, NName}], [Child]},     
-              [{ids, [NName | Ids]}, List]}
+              [{ids, [NName | Ids]}, List, {functions, [NName|Funs]}]}
     end;
 tr_erlref({fsummary, [], _Child}, _Acc) ->
     ignore;
@@ -376,16 +380,33 @@ read_xml(OtpSrc, XmlFile) ->
 %% {key, "Some text"}
 file_tpl(Src, Args) ->
     {ok, Bin} = file:read_file([Src,"/","erldocs.tpl"]),
-    str_tpl(Bin, Args).
+    str_tpl(binary_to_list(Bin), Args).
     
 str_tpl(Str, Args) ->
     F = fun({Key, Value}, Tpl) ->
-                Opts = [{return, list}, global],
+                %Opts = [global],
                 NKey = "#"++string:to_upper(atom_to_list(Key))++"#",
-                re:replace(Tpl, NKey, Value, Opts)
+						%re:replace(Tpl, NKey, Value, Opts)
+                {ok, NTpl, _Matches} = regexp:gsub(Tpl, NKey, esc_regex(Value)),
+                NTpl
         end,
-    lists:foldl(F, Str, Args).
+    lists:foldr(F, Str, Args).
 
 %% lazy shorthand
 fmt(Format, Args) ->
     lists:flatten(io_lib:format(Format, Args)).
+
+%% Escape the replacement part of the regular expression
+%% so no spurios replacements
+esc_regex(List) when is_binary(List) ->    
+    esc_regex(binary_to_list(List));
+esc_regex(List) ->    
+    esc_regex(List, []).
+
+esc_regex([], Acc) ->
+    lists:flatten(lists:reverse(Acc));
+
+esc_regex([$&   | Rest], Acc) -> esc_regex(Rest, ["\\&" | Acc]);
+%esc_regex([$\   | Rest], Acc) -> esc_regex(Rest, ["\\" | Acc]);
+esc_regex([Else | Rest], Acc) -> esc_regex(Rest, [Else | Acc]).
+
