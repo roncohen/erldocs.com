@@ -1,10 +1,12 @@
 ErlDocs = function() {
 
-    var search   = $("#search"),
-    results      = $("#results"),
-    selected     = null,
-    resultsCount = 0;
-
+    var search       = $("#search");
+    var results      = $("#results");
+    var selected     = null;
+    var resultsCount = 0;
+    var root         = (typeof CURRENT_ROOT == "undefined") 
+        ? "" : CURRENT_ROOT;
+    
     search.focus( function() {
         if(search.val() == "Loading...") {
             search.val("");
@@ -69,13 +71,16 @@ ErlDocs = function() {
     };
 
     function showModules() {
+
         var html = "";
+        
         var preurl = !ErlDocs.is_home() ? "../" : "";
         
         for( var i=0, count=0; i < ErlDocs.index.length; i++ ) {
             var item = ErlDocs.index[i];
             if ( item[0] == "mod" ) {
-                var url = preurl+item[1]+"/"+item[2].split(":")[0]+".html?i="+i;
+                var url = root+preurl+item[1]+"/"
+                    +item[2].split(":")[0]+".html?i="+i;
                 html += '<li class="'+item[0]+'"><a href="'+url+'">'
                     +'<span class="name">'+item[2]+"</span>"
                     +'<br /><span class="sub">'+item[3]+'</span>'
@@ -100,8 +105,9 @@ ErlDocs = function() {
                 
 	            var hash = (item[0] == "fun") ? "#"+item[2].split(":")[1] : "";
                 
-	            var url = preurl+item[1]+"/"+item[2].split(":")[0]
+	            var url = root+preurl+item[1]+"/"+item[2].split(":")[0]
                     +".html?search="+str+"&i="+count + hash;
+
 	            html += '<li class="'+item[0]+'"><a href="'+url+'">'
 	                +'<span class="name">'+item[2]+"</span>"
 	                +'<br /><span class="sub">'+item[3]+'</span>'
@@ -139,7 +145,8 @@ ErlDocs.match = function(str, terms)
 // This is a nasty check
 ErlDocs.is_home = function()
 {
-    return document.title.match("Module Index") !== null;
+    return document.title.match("Module Index") !== null 
+        || (typeof CURRENT_ROOT != "undefined");
 };
 
 ErlDocs.parse_query = function(url)
