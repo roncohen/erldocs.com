@@ -54,8 +54,8 @@ ErlDocs = function() {
     function keypress(e) {
 
 	if ( e.keyCode == 17 || e.keyCode == 18 || e.keyCode == 91 ) {
-            // 17 == Ctrl, 18 == Option and 91 == ⌘
             return;
+	}
 
         if( e.keyCode == 40 ) {        //DOWN
 	        setSelected(selected + 1, false);
