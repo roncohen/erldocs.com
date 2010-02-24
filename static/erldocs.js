@@ -1,9 +1,9 @@
 ErlDocs = function() {
 
-    var search   = $("#search"),
-    results      = $("#results"),
-    selected     = null,
-    resultsCount = 0;
+    var search       = $("#search");
+    var results      = $("#results");
+    var selected     = null;
+    var resultsCount = 0;
 
     search.focus( function() {
         if(search.val() == "Loading...") {
@@ -34,11 +34,14 @@ ErlDocs = function() {
     
     if( qs && qs.i ) {
         setSelected(parseInt(qs.i, 10));
+    } else {
+        setSelected(0);
     }
     
     search.focus();
     
     function setSelected(x, down) {
+
         down = (typeof down == "undefined") ? false : down;
         
         if( x >= 0 && x < resultsCount ) {
@@ -52,19 +55,19 @@ ErlDocs = function() {
     };
     
     function keypress(e) {
-
-	if ( e.keyCode == 17 || e.keyCode == 18 || e.keyCode == 91 ) {
+        
+	    if ( e.keyCode == 17 || e.keyCode == 18 || e.keyCode == 91 ) {
             return;
-	}
+	    }
 
         if( e.keyCode == 40 ) {        //DOWN
 	        setSelected(selected + 1, false);
         } else if( e.keyCode == 38 ) {    //UP
 	        setSelected(selected - 1, false);
         } else if ( e.keyCode == 13 ) { //ENTER
-            var selected = results.children(".selected");
-            if ( selected.length > 0 ) {
-                document.location.href = selected.find("a").attr("href");
+            var tmp = results.children(".selected");
+            if( tmp.length > 0 ) {
+                document.location.href = tmp.find("a").attr("href");
             }
         } else {
 	        filter(search.val());
