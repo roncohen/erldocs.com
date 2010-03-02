@@ -5,6 +5,8 @@ ErlDocs = function() {
     var selected     = null;
     var resultsCount = 0;
 
+    var footerPos = -94;
+
     search.focus( function() {
         if(search.val() == "Loading...") {
             search.val("");
@@ -15,6 +17,36 @@ ErlDocs = function() {
         setTimeout( function() {
             keypress(e);
         },0);
+    });
+
+    var getDetails = function(position) { 
+        return position 
+            ? {"text":"Hide Functions", "position":0}
+            : {"text":"View Functions", "position":footerPos};
+    }
+    
+    var setDetails = function(details, fun) { 
+        $("#viewfuns").text(details.text);
+        $("#funwrapper").animate({"bottom":details.position}, "normal", fun);
+    }
+
+    var details = getDetails(
+        (localStorage && localStorage.footer) != footerPos);
+
+    setDetails(details, function() {
+        $("#funwrapper").css({"display":"block"});    
+    });    
+    
+    $("#viewfuns").bind("mousedown", function(e) {
+        
+        var details = getDetails(
+            parseInt($("#funwrapper").css("bottom"), 10) == footerPos);
+        
+        setDetails(details, null);
+        
+        if( localStorage ) {
+            localStorage.footer = details.position;
+        }
     });
 
     $(window).bind('resize', function(e) {
@@ -37,7 +69,7 @@ ErlDocs = function() {
     } else {
         setSelected(0);
     }
-    
+
     search.focus();
     
     function setSelected(x, down) {
@@ -56,7 +88,9 @@ ErlDocs = function() {
     
     function keypress(e) {
         
-	    if ( e.keyCode == 17 || e.keyCode == 18 || e.keyCode == 91 ) {
+        var blockedKeys = [17, 18, 91, 192];
+        
+	    if( !($.inArray(e.keyCode, blockedKeys) == -1) ) {
             return;
 	    }
 
